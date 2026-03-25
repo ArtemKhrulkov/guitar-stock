@@ -3,45 +3,50 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
+	"github.com/sirupsen/logrus"
 )
 
-type WildberriesScraper struct{}
-
-func NewWildberriesScraper() *WildberriesScraper {
-	return &WildberriesScraper{}
+type WildberriesScraper struct {
+	logger *logrus.Logger
 }
 
-func (s *WildberriesScraper) Search(brand, model string) ([]SearchResult, error) {
+func NewWildberriesScraper() *WildberriesScraper {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+
+	return &WildberriesScraper{logger: logger}
+}
+
+func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([]SearchResult, error) {
 	var results []SearchResult
 	query := fmt.Sprintf("%s %s гитара", brand, model)
 	searchURL := fmt.Sprintf("https://www.wildberries.ru/catalog/0/search.aspx?search=%s", strings.ReplaceAll(query, " ", "%20"))
 
-	log.Printf("[WB] Searching: %s", searchURL)
+	s.logger.Infof("[WB] Searching: %s", searchURL)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	searchCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx,
+	allocCtx, allocCancel := chromedp.NewExecAllocator(searchCtx,
 		chromedp.NoSandbox,
 		chromedp.Headless,
 		chromedp.DisableGPU,
 	)
 	defer allocCancel()
 
-	ctx, cancel = chromedp.NewContext(allocCtx)
+	browserCtx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
 
 	var productLinks []string
 	var productTitles []string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(browserCtx,
 		chromedp.Navigate(searchURL),
 		chromedp.Sleep(5*time.Second),
 		chromedp.WaitVisible(`article.product-card`, chromedp.ByQuery),
@@ -59,7 +64,7 @@ func (s *WildberriesScraper) Search(brand, model string) ([]SearchResult, error)
 			`, &jsResults).Do(ctx)
 
 			if err != nil {
-				log.Printf("[WB] Error evaluating: %v", err)
+				s.logger.Printf("[WB] Error evaluating: %v", err)
 				return err
 			}
 
@@ -78,7 +83,7 @@ func (s *WildberriesScraper) Search(brand, model string) ([]SearchResult, error)
 	)
 
 	if err != nil {
-		log.Printf("[WB] Chromedp error: %v", err)
+		s.logger.Printf("[WB] Chromedp error: %v", err)
 		return results, nil
 	}
 
@@ -95,7 +100,7 @@ func (s *WildberriesScraper) Search(brand, model string) ([]SearchResult, error)
 		}
 
 		if link != "" {
-			log.Printf("[WB] Found: %s - %s", title, link)
+			s.logger.Printf("[WB] Found: %s - %s", title, link)
 			results = append(results, result)
 		}
 	}
@@ -104,7 +109,7 @@ func (s *WildberriesScraper) Search(brand, model string) ([]SearchResult, error)
 		results = results[:10]
 	}
 
-	log.Printf("[WB] Found %d results", len(results))
+	s.logger.Printf("[WB] Found %d results", len(results))
 	return results, nil
 }
 

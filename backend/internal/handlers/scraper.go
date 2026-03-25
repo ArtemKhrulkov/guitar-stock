@@ -4,23 +4,47 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+
+	"guitar-stock/internal/scraper"
 )
 
-type ScraperHandler struct{}
+type ScraperHandler struct {
+	service *scraper.Service
+}
 
-func NewScraperHandler() *ScraperHandler {
-	return &ScraperHandler{}
+func NewScraperHandler(service *scraper.Service) *ScraperHandler {
+	return &ScraperHandler{service: service}
 }
 
 func (h *ScraperHandler) ScrapeGuitar(c *gin.Context) {
-	c.JSON(http.StatusServiceUnavailable, gin.H{
-		"error": "Scraper is currently disabled. Please add purchase links manually via POST /api/admin/links",
-		"links": []interface{}{},
+	idStr := c.Param("guitar_id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid guitar ID"})
+		return
+	}
+
+	links, err := h.service.ScrapeGuitar(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to scrape guitar",
+			"links": []interface{}{},
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"links": links,
 	})
 }
 
 func (h *ScraperHandler) ScrapeAll(c *gin.Context) {
-	c.JSON(http.StatusServiceUnavailable, gin.H{
-		"error": "Scraper is currently disabled. Please add purchase links manually via POST /api/admin/links",
+	go func() {
+		h.service.ScrapeAll(c.Request.Context())
+	}()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Scraping started in background",
 	})
 }

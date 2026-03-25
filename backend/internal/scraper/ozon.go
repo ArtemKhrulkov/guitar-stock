@@ -3,45 +3,50 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/chromedp/chromedp"
+	"github.com/sirupsen/logrus"
 )
 
-type OzonScraper struct{}
-
-func NewOzonScraper() *OzonScraper {
-	return &OzonScraper{}
+type OzonScraper struct {
+	logger *logrus.Logger
 }
 
-func (s *OzonScraper) Search(brand, model string) ([]SearchResult, error) {
+func NewOzonScraper() *OzonScraper {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+
+	return &OzonScraper{logger: logger}
+}
+
+func (s *OzonScraper) Search(ctx context.Context, brand, model string) ([]SearchResult, error) {
 	var results []SearchResult
 	query := fmt.Sprintf("%s %s гитара", brand, model)
 	searchURL := fmt.Sprintf("https://www.ozon.ru/search/?text=%s", strings.ReplaceAll(query, " ", "+"))
 
-	log.Printf("[OZON] Searching: %s", searchURL)
+	s.logger.Infof("[OZON] Searching: %s", searchURL)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	searchCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx,
+	allocCtx, allocCancel := chromedp.NewExecAllocator(searchCtx,
 		chromedp.NoSandbox,
 		chromedp.Headless,
 		chromedp.DisableGPU,
 	)
 	defer allocCancel()
 
-	ctx, cancel = chromedp.NewContext(allocCtx)
+	browserCtx, cancel := chromedp.NewContext(allocCtx)
 	defer cancel()
 
 	var productLinks []string
 	var productTitles []string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(browserCtx,
 		chromedp.Navigate(searchURL),
 		chromedp.Sleep(5*time.Second),
 		chromedp.WaitVisible(`[data-widget="searchResultsV2"]`, chromedp.ByQuery),
@@ -55,7 +60,7 @@ func (s *OzonScraper) Search(brand, model string) ([]SearchResult, error) {
 			`, &jsResults).Do(ctx)
 
 			if err != nil {
-				log.Printf("[OZON] Error evaluating: %v", err)
+				s.logger.Printf("[OZON] Error evaluating: %v", err)
 				return err
 			}
 
@@ -70,7 +75,7 @@ func (s *OzonScraper) Search(brand, model string) ([]SearchResult, error) {
 	)
 
 	if err != nil {
-		log.Printf("[OZON] Chromedp error: %v", err)
+		s.logger.Printf("[OZON] Chromedp error: %v", err)
 		return results, nil
 	}
 
@@ -87,7 +92,7 @@ func (s *OzonScraper) Search(brand, model string) ([]SearchResult, error) {
 		}
 
 		if link != "" {
-			log.Printf("[OZON] Found: %s - %s", title, link)
+			s.logger.Printf("[OZON] Found: %s - %s", title, link)
 			results = append(results, result)
 		}
 	}
@@ -96,7 +101,7 @@ func (s *OzonScraper) Search(brand, model string) ([]SearchResult, error) {
 		results = results[:10]
 	}
 
-	log.Printf("[OZON] Found %d results", len(results))
+	s.logger.Printf("[OZON] Found %d results", len(results))
 	return results, nil
 }
 

@@ -1,5 +1,9 @@
 package scraper
 
+import (
+	"context"
+)
+
 type Platform string
 
 const (
@@ -16,16 +20,16 @@ type SearchResult struct {
 }
 
 type Scraper interface {
-	Search(brand, model string) ([]SearchResult, error)
+	Search(ctx context.Context, brand, model string) ([]SearchResult, error)
 }
 
 func NewScraper(platform Platform) Scraper {
 	switch platform {
 	case Ozon:
-		return &OzonScraper{}
+		return NewOzonScraper()
 	case Wildberries:
-		return &WildberriesScraper{}
+		return NewWildberriesScraper()
 	default:
-		return &OzonScraper{}
+		return NewOzonScraper()
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"guitar-stock/internal/handlers"
 	"guitar-stock/internal/middleware"
 	"guitar-stock/internal/repository"
+	"guitar-stock/internal/scraper"
 )
 
 func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
@@ -26,11 +27,14 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	playerRepo := repository.NewPlayerRepository(db)
 	purchaseLinkRepo := repository.NewPurchaseLinkRepository(db)
 
+	scraperService := scraper.NewService(db)
+
 	brandHandler := handlers.NewBrandHandler(brandRepo)
 	guitarHandler := handlers.NewGuitarHandler(guitarRepo)
 	playerHandler := handlers.NewPlayerHandler(playerRepo)
 	authHandler := handlers.NewAuthHandler(cfg)
 	adminHandler := handlers.NewAdminHandler(purchaseLinkRepo, guitarRepo)
+	scraperHandler := handlers.NewScraperHandler(scraperService)
 
 	api := r.Group("/api")
 	{
@@ -50,12 +54,8 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 		admin := api.Group("/admin")
 		admin.Use(middleware.BasicAuth(cfg))
 		{
-			admin.POST("/scrape/:guitar_id", func(c *gin.Context) {
-				c.JSON(503, gin.H{"error": "Scraper is currently disabled. Please add purchase links manually via POST /api/admin/links"})
-			})
-			admin.POST("/scrape/all", func(c *gin.Context) {
-				c.JSON(503, gin.H{"error": "Scraper is currently disabled. Please add purchase links manually"})
-			})
+			admin.POST("/scrape/:guitar_id", scraperHandler.ScrapeGuitar)
+			admin.POST("/scrape/all", scraperHandler.ScrapeAll)
 			admin.GET("/links", adminHandler.GetLinks)
 			admin.POST("/links", adminHandler.AddLink)
 			admin.DELETE("/links", adminHandler.DeleteLink)
