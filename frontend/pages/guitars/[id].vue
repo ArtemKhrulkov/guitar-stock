@@ -49,10 +49,8 @@
                 <v-col cols="12" md="5">
                     <v-card elevation="4" class="overflow-hidden">
                         <NuxtImg
-                            :src="
-                                guitar.image_url ||
-                                'https://via.placeholder.com/600x600?text=No+Image'
-                            "
+                            v-if="guitar.image_url && !guitar.image_url.includes('placeholder')"
+                            :src="guitar.image_url"
                             :alt="`${guitar.brand?.name} ${guitar.model}`"
                             width="600"
                             height="500"
@@ -61,6 +59,9 @@
                             quality="80"
                             class="guitar-detail-image"
                         />
+                        <div v-else class="guitar-detail-image-placeholder">
+                            <span>{{ guitar.brand?.name }} {{ guitar.model }}</span>
+                        </div>
                     </v-card>
 
                     <!-- Type Badge -->
@@ -273,5 +274,11 @@ onMounted(async () => {
     height: 500px;
     object-fit: cover;
     background-color: rgb(var(--v-theme-grey-lighten-3));
+}
+
+.guitar-detail-image-placeholder {
+    width: 100%;
+    height: 500px;
+    padding: 2rem;
 }
 </style>

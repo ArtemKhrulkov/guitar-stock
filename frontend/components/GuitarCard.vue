@@ -1,10 +1,8 @@
 <template>
     <v-card :to="`/guitars/${guitar.id}`" class="guitar-card h-100" hover>
         <NuxtImg
-            :src="
-                guitar.image_url ||
-                'https://via.placeholder.com/400x300?text=No+Image'
-            "
+            v-if="guitar.image_url && !guitar.image_url.includes('placeholder')"
+            :src="guitar.image_url"
             :alt="`${guitar.brand?.name} ${guitar.model}`"
             width="400"
             height="300"
@@ -13,6 +11,9 @@
             quality="80"
             class="guitar-image"
         />
+        <div v-else class="guitar-image-placeholder">
+            <span>{{ guitar.brand?.name }} {{ guitar.model }}</span>
+        </div>
 
         <!-- Type Badge -->
         <v-chip
@@ -131,6 +132,13 @@ const getTypeColor = (type: string) => {
     height: 200px;
     object-fit: cover;
     background-color: rgb(var(--v-theme-grey-lighten-3));
+}
+
+.guitar-image-placeholder {
+    width: 100%;
+    height: 200px;
+    padding: 1rem;
+    font-size: 0.9rem;
 }
 
 .type-badge {

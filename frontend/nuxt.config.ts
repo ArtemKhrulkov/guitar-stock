@@ -75,7 +75,16 @@ export default defineNuxtConfig({
   },
 
   image: {
-    domains: ["via.placeholder.com"],
+    domains: [
+      "via.placeholder.com",
+      "media.musiciansfriend.com",
+      "www.ibanez.com",
+      "cdn.mos.cms.futurecdn.net",
+      "down-id.img.susercontent.com",
+      "whatgear-pictures.s3.us-west-2.amazonaws.com",
+      "www.static-src.com",
+      "www.musicworks.co.nz",
+    ],
     format: ["webp", "avif"],
     quality: 80,
   },
