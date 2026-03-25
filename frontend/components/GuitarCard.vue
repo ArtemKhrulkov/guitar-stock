@@ -1,7 +1,7 @@
 <template>
     <v-card :to="`/guitars/${guitar.id}`" class="guitar-card h-100" hover>
         <NuxtImg
-            v-if="guitar.image_url && !guitar.image_url.includes('placeholder')"
+            v-if="guitar.image_url && !guitar.image_url.startsWith('https://via.placeholder')"
             :src="guitar.image_url"
             :alt="`${guitar.brand?.name} ${guitar.model}`"
             width="400"
@@ -139,6 +139,13 @@ const getTypeColor = (type: string) => {
     height: 200px;
     padding: 1rem;
     font-size: 0.9rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    text-align: center;
 }
 
 .type-badge {

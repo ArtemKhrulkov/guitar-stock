@@ -49,7 +49,7 @@
                 <v-col cols="12" md="5">
                     <v-card elevation="4" class="overflow-hidden">
                         <NuxtImg
-                            v-if="guitar.image_url && !guitar.image_url.includes('placeholder')"
+                            v-if="guitar.image_url && !guitar.image_url.startsWith('https://via.placeholder')"
                             :src="guitar.image_url"
                             :alt="`${guitar.brand?.name} ${guitar.model}`"
                             width="600"
@@ -280,5 +280,13 @@ onMounted(async () => {
     width: 100%;
     height: 500px;
     padding: 2rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.5rem;
+    text-align: center;
 }
 </style>
