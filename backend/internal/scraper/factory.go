@@ -24,10 +24,20 @@ type Scraper interface {
 }
 
 func NewScraper(platform Platform) Scraper {
+	return NewScraperWithProxies(platform, nil)
+}
+
+func NewScraperWithProxies(platform Platform, proxies []string) Scraper {
 	switch platform {
 	case Ozon:
+		if len(proxies) > 0 {
+			return NewOzonScraperWithProxies(proxies)
+		}
 		return NewOzonScraper()
 	case Wildberries:
+		if len(proxies) > 0 {
+			return NewWildberriesScraperWithProxies(proxies)
+		}
 		return NewWildberriesScraper()
 	default:
 		return NewOzonScraper()

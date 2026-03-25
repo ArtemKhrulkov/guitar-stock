@@ -24,6 +24,7 @@ type PurchaseLink struct {
 	PriceRUB     *float64       `gorm:"type:decimal(10,2)" json:"price_rub,omitempty"`
 	PriceUSD     *float64       `gorm:"type:decimal(10,2)" json:"price_usd,omitempty"`
 	InStock      bool           `gorm:"default:true" json:"in_stock"`
+	IsManual     bool           `gorm:"default:false" json:"is_manual"`
 	LastScraped  *time.Time     `json:"last_scraped,omitempty"`
 	CreatedAt    time.Time      `json:"created_at"`
 	UpdatedAt    time.Time      `json:"updated_at"`

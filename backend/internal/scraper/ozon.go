@@ -3,24 +3,36 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
-	"github.com/chromedp/chromedp"
+	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/proxy"
 	"github.com/sirupsen/logrus"
 )
 
 type OzonScraper struct {
-	logger *logrus.Logger
+	logger  *logrus.Logger
+	proxies []string
 }
 
 func NewOzonScraper() *OzonScraper {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
 
-	return &OzonScraper{logger: logger}
+	return &OzonScraper{
+		logger:  logger,
+		proxies: []string{},
+	}
+}
+
+func NewOzonScraperWithProxies(proxies []string) *OzonScraper {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+
+	return &OzonScraper{
+		logger:  logger,
+		proxies: proxies,
+	}
 }
 
 func (s *OzonScraper) Search(ctx context.Context, brand, model string) ([]SearchResult, error) {
@@ -30,72 +42,69 @@ func (s *OzonScraper) Search(ctx context.Context, brand, model string) ([]Search
 
 	s.logger.Infof("[OZON] Searching: %s", searchURL)
 
-	searchCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	allocCtx, allocCancel := chromedp.NewExecAllocator(searchCtx,
-		chromedp.NoSandbox,
-		chromedp.Headless,
-		chromedp.DisableGPU,
-	)
-	defer allocCancel()
-
-	browserCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
-
-	var productLinks []string
-	var productTitles []string
-
-	err := chromedp.Run(browserCtx,
-		chromedp.Navigate(searchURL),
-		chromedp.Sleep(5*time.Second),
-		chromedp.WaitVisible(`[data-widget="searchResultsV2"]`, chromedp.ByQuery),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			var jsResults []map[string]string
-			err := chromedp.Evaluate(`
-				(function() { 
-					const items = document.querySelectorAll('[data-widget="searchResultsV2"] a[href*="/product/"]'); 
-					return Array.from(items).map(a => ({ href: a.href, title: a.textContent.trim() || a.getAttribute('aria-label') || '' })); 
-				})()
-			`, &jsResults).Do(ctx)
-
-			if err != nil {
-				s.logger.Printf("[OZON] Error evaluating: %v", err)
-				return err
-			}
-
-			for _, item := range jsResults {
-				if item["href"] != "" {
-					productLinks = append(productLinks, item["href"])
-					productTitles = append(productTitles, item["title"])
-				}
-			}
-			return nil
-		}),
+	c := colly.NewCollector(
+		colly.AllowedDomains("ozon.ru", "www.ozon.ru"),
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
+		colly.MaxDepth(2),
 	)
 
-	if err != nil {
-		s.logger.Printf("[OZON] Chromedp error: %v", err)
-		return results, nil
+	if len(s.proxies) > 0 {
+		rp, err := proxy.RoundRobinProxySwitcher(s.proxies...)
+		if err == nil {
+			c.SetProxyFunc(rp)
+			s.logger.Infof("[OZON] Using %d proxies", len(s.proxies))
+		}
 	}
 
-	for i, link := range productLinks {
-		title := ""
-		if i < len(productTitles) {
-			title = strings.TrimSpace(productTitles[i])
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+		r.Headers.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+		r.Headers.Set("Accept-Encoding", "gzip, deflate, br")
+		r.Headers.Set("Connection", "keep-alive")
+		r.Headers.Set("Upgrade-Insecure-Requests", "1")
+		r.Headers.Set("Sec-Fetch-Dest", "document")
+		r.Headers.Set("Sec-Fetch-Mode", "navigate")
+		r.Headers.Set("Sec-Fetch-Site", "none")
+		r.Headers.Set("Sec-Fetch-User", "?1")
+		r.Headers.Set("Cache-Control", "max-age=0")
+	})
+
+	c.OnHTML("a[href*='/product/']", func(e *colly.HTMLElement) {
+		href := e.Attr("href")
+		if href == "" {
+			return
+		}
+
+		if !strings.HasPrefix(href, "http") {
+			href = "https://www.ozon.ru" + href
+		}
+
+		title := strings.TrimSpace(e.Text)
+		if title == "" {
+			title = e.Attr("aria-label")
 		}
 
 		result := SearchResult{
-			URL:     link,
+			URL:     href,
 			Title:   title,
 			InStock: true,
 		}
 
-		if link != "" {
-			s.logger.Printf("[OZON] Found: %s - %s", title, link)
-			results = append(results, result)
-		}
+		s.logger.Printf("[OZON] Found: %s - %s", title, href)
+		results = append(results, result)
+	})
+
+	c.OnError(func(r *colly.Response, err error) {
+		s.logger.Printf("[OZON] Colly error (status %d): %v", r.StatusCode, err)
+	})
+
+	err := c.Visit(searchURL)
+	if err != nil {
+		s.logger.Printf("[OZON] Visit error: %v", err)
+		return results, nil
 	}
+
+	c.Wait()
 
 	if len(results) > 10 {
 		results = results[:10]
@@ -103,20 +112,4 @@ func (s *OzonScraper) Search(ctx context.Context, brand, model string) ([]Search
 
 	s.logger.Printf("[OZON] Found %d results", len(results))
 	return results, nil
-}
-
-func parsePrice(text string) *float64 {
-	re := regexp.MustCompile(`[\d\s]+`)
-	match := re.FindString(text)
-	if match == "" {
-		return nil
-	}
-
-	cleaned := strings.ReplaceAll(match, " ", "")
-	price, err := strconv.ParseFloat(cleaned, 64)
-	if err != nil {
-		return nil
-	}
-
-	return &price
 }

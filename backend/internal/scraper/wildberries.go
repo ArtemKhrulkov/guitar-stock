@@ -3,24 +3,36 @@ package scraper
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
-	"time"
 
-	"github.com/chromedp/chromedp"
+	"github.com/gocolly/colly"
+	"github.com/gocolly/colly/proxy"
 	"github.com/sirupsen/logrus"
 )
 
 type WildberriesScraper struct {
-	logger *logrus.Logger
+	logger  *logrus.Logger
+	proxies []string
 }
 
 func NewWildberriesScraper() *WildberriesScraper {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
 
-	return &WildberriesScraper{logger: logger}
+	return &WildberriesScraper{
+		logger:  logger,
+		proxies: []string{},
+	}
+}
+
+func NewWildberriesScraperWithProxies(proxies []string) *WildberriesScraper {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+
+	return &WildberriesScraper{
+		logger:  logger,
+		proxies: proxies,
+	}
 }
 
 func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([]SearchResult, error) {
@@ -30,80 +42,69 @@ func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([
 
 	s.logger.Infof("[WB] Searching: %s", searchURL)
 
-	searchCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	defer cancel()
-
-	allocCtx, allocCancel := chromedp.NewExecAllocator(searchCtx,
-		chromedp.NoSandbox,
-		chromedp.Headless,
-		chromedp.DisableGPU,
-	)
-	defer allocCancel()
-
-	browserCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
-
-	var productLinks []string
-	var productTitles []string
-
-	err := chromedp.Run(browserCtx,
-		chromedp.Navigate(searchURL),
-		chromedp.Sleep(5*time.Second),
-		chromedp.WaitVisible(`article.product-card`, chromedp.ByQuery),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			var jsResults []map[string]string
-			err := chromedp.Evaluate(`
-				(function() { 
-					const items = document.querySelectorAll('article.product-card a[data-link]'); 
-					return Array.from(items).map(a => ({ 
-						href: a.href || a.getAttribute('data-link') || '', 
-						title: a.querySelector('.product-card__name')?.textContent?.trim() || 
-							   a.querySelector('.goods-name')?.textContent?.trim() || '' 
-					})); 
-				})()
-			`, &jsResults).Do(ctx)
-
-			if err != nil {
-				s.logger.Printf("[WB] Error evaluating: %v", err)
-				return err
-			}
-
-			for _, item := range jsResults {
-				if item["href"] != "" {
-					link := item["href"]
-					if !strings.HasPrefix(link, "http") {
-						link = "https://www.wildberries.ru" + link
-					}
-					productLinks = append(productLinks, link)
-					productTitles = append(productTitles, item["title"])
-				}
-			}
-			return nil
-		}),
+	c := colly.NewCollector(
+		colly.AllowedDomains("wildberries.ru", "www.wildberries.ru"),
+		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
+		colly.MaxDepth(2),
 	)
 
-	if err != nil {
-		s.logger.Printf("[WB] Chromedp error: %v", err)
-		return results, nil
+	if len(s.proxies) > 0 {
+		rp, err := proxy.RoundRobinProxySwitcher(s.proxies...)
+		if err == nil {
+			c.SetProxyFunc(rp)
+			s.logger.Infof("[WB] Using %d proxies", len(s.proxies))
+		}
 	}
 
-	for i, link := range productLinks {
-		title := ""
-		if i < len(productTitles) {
-			title = strings.TrimSpace(productTitles[i])
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+		r.Headers.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
+		r.Headers.Set("Accept-Encoding", "gzip, deflate, br")
+		r.Headers.Set("Connection", "keep-alive")
+		r.Headers.Set("Upgrade-Insecure-Requests", "1")
+		r.Headers.Set("Sec-Fetch-Dest", "document")
+		r.Headers.Set("Sec-Fetch-Mode", "navigate")
+		r.Headers.Set("Sec-Fetch-Site", "none")
+		r.Headers.Set("Sec-Fetch-User", "?1")
+		r.Headers.Set("Cache-Control", "max-age=0")
+	})
+
+	c.OnHTML("a[href*='/catalog/']", func(e *colly.HTMLElement) {
+		href := e.Attr("href")
+		if href == "" {
+			return
+		}
+
+		if !strings.HasPrefix(href, "http") {
+			href = "https://www.wildberries.ru" + href
+		}
+
+		title := strings.TrimSpace(e.Text)
+		if title == "" {
+			title = e.Attr("data-link-name")
 		}
 
 		result := SearchResult{
-			URL:     link,
+			URL:     href,
 			Title:   title,
 			InStock: true,
 		}
 
-		if link != "" {
-			s.logger.Printf("[WB] Found: %s - %s", title, link)
-			results = append(results, result)
-		}
+		s.logger.Printf("[WB] Found: %s - %s", title, href)
+		results = append(results, result)
+	})
+
+	c.OnError(func(r *colly.Response, err error) {
+		s.logger.Printf("[WB] Colly error (status %d): %v", r.StatusCode, err)
+	})
+
+	err := c.Visit(searchURL)
+	if err != nil {
+		s.logger.Printf("[WB] Visit error: %v", err)
+		return results, nil
 	}
+
+	c.Wait()
 
 	if len(results) > 10 {
 		results = results[:10]
@@ -111,20 +112,4 @@ func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([
 
 	s.logger.Printf("[WB] Found %d results", len(results))
 	return results, nil
-}
-
-func parseWBPrice(text string) *float64 {
-	re := regexp.MustCompile(`[\d\s]+`)
-	matches := re.FindAllString(text, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-
-	cleaned := strings.ReplaceAll(matches[0], " ", "")
-	price, err := strconv.ParseFloat(cleaned, 64)
-	if err != nil {
-		return nil
-	}
-
-	return &price
 }

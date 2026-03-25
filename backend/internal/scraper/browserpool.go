@@ -101,7 +101,7 @@ func (bp *BrowserPool) Acquire() (*BrowserContext, error) {
 		bc.cancel()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 
 	uaIndex := time.Now().UnixNano() % int64(len(bp.userAgents))
 	userAgent := bp.userAgents[uaIndex]
@@ -111,15 +111,40 @@ func (bp *BrowserPool) Acquire() (*BrowserContext, error) {
 		chromedp.NoSandbox,
 		chromedp.Headless,
 		chromedp.DisableGPU,
+		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("disable-dev-shm-usage", true),
+		chromedp.Flag("disable-setuid-sandbox", true),
+		chromedp.Flag("no-first-run", true),
+		chromedp.Flag("no-zygote", true),
+		chromedp.Flag("single-process", false),
+		chromedp.Flag("ignore-certificate-errors", true),
+		chromedp.Flag("allow-running-insecure-content", true),
+		chromedp.Flag("disable-web-security", true),
+		chromedp.Flag("disable-extensions", true),
+		chromedp.Flag("disable-background-networking", true),
+		chromedp.Flag("disable-default-apps", true),
+		chromedp.Flag("disable-sync", true),
+		chromedp.Flag("disable-translate", true),
+		chromedp.Flag("metrics-recording-only", true),
+		chromedp.Flag("mute-audio", true),
+		chromedp.Flag("no-sandbox", true),
+		chromedp.Flag("remote-debugging-port", "9222"),
+		chromedp.Flag("headless", true),
+		chromedp.Flag("disable-images", true),
+		chromedp.WindowSize(1920, 1080),
 	}
 
 	if chromePath := findChromePath(); chromePath != "" {
 		allocOpts = append(allocOpts, chromedp.ExecPath(chromePath))
 	}
 
+	bp.logger.Infof("[BROWSER] Starting Chrome with path: %s", findChromePath())
+
 	allocCtx, allocCancel := chromedp.NewExecAllocator(ctx, allocOpts...)
 
+	bp.logger.Infof("[BROWSER] Creating new browser context...")
 	browserCtx, browserCancel := chromedp.NewContext(allocCtx)
+	bp.logger.Infof("[BROWSER] Browser context created")
 
 	bc.ctx = browserCtx
 	bc.cancel = func() {

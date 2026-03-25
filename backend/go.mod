@@ -3,9 +3,10 @@ module guitar-stock
 go 1.26
 
 require (
+	github.com/chromedp/chromedp v0.15.1
 	github.com/gin-contrib/cors v1.5.0
 	github.com/gin-gonic/gin v1.9.1
-	github.com/gocolly/colly/v2 v2.1.0
+	github.com/gocolly/colly v1.2.0
 	github.com/google/uuid v1.5.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
@@ -23,7 +24,6 @@ require (
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.0 // indirect
 	github.com/chromedp/cdproto v0.0.0-20260321001828-e3e3800016bc // indirect
-	github.com/chromedp/chromedp v0.15.1 // indirect
 	github.com/chromedp/sysutil v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect

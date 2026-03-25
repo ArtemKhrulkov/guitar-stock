@@ -93,6 +93,7 @@ func (h *AdminHandler) AddLink(c *gin.Context) {
 		PriceRUB: req.PriceRUB,
 		PriceUSD: req.PriceUSD,
 		InStock:  inStock,
+		IsManual: true,
 	}
 
 	if err := h.purchaseLinkRepo.Create(link); err != nil {

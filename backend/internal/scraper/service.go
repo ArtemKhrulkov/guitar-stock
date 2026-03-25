@@ -105,29 +105,21 @@ func (s *Service) ScrapeGuitar(ctx context.Context, guitarID uuid.UUID) ([]model
 		s.logger.Infof("[SCRAPER] Scraping platform: %s", platform)
 
 		var lastErr error
-		proxy := s.proxies.Get()
 
 		for attempt := 0; attempt <= s.config.Retries; attempt++ {
 			if attempt > 0 {
 				s.logger.Infof("[SCRAPER] Retry %d/%d for %s", attempt, s.config.Retries, platform)
 				time.Sleep(s.config.RetryDelay)
-
-				if s.proxies.Has() {
-					proxy = s.proxies.Get()
-				}
 			}
 
-			browser, err := s.browserPool.Acquire()
-			if err != nil {
-				s.logger.Errorf("[SCRAPER] Failed to acquire browser: %v", err)
-				lastErr = err
-				continue
+			proxy := s.proxies.Get()
+			var proxyList []string
+			if proxy != "" {
+				proxyList = []string{proxy}
 			}
 
-			scraper := NewScraper(platform)
-			results, err := scraper.Search(browser.ctx, brand.Name, guitar.Model)
-
-			s.browserPool.Release(browser)
+			scraper := NewScraperWithProxies(platform, proxyList)
+			results, err := scraper.Search(ctx, brand.Name, guitar.Model)
 
 			if err != nil {
 				s.logger.Errorf("[SCRAPER] Error from %s: %v", platform, err)
@@ -179,6 +171,10 @@ func (s *Service) ScrapeGuitar(ctx context.Context, guitarID uuid.UUID) ([]model
 			s.logger.Warn("[SCRAPER] All proxies exhausted, stopping")
 			break
 		}
+	}
+
+	if len(allLinks) == 0 {
+		s.logger.Warnf("[SCRAPER] No results for %s. Consider adding manual purchase links via POST /api/admin/links", guitar.Model)
 	}
 
 	s.logger.Infof("[SCRAPER] Completed scrape for %s, found %d total links", guitar.Model, len(allLinks))
