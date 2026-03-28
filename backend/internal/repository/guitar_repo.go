@@ -2,6 +2,7 @@ package repository
 
 import (
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -150,4 +151,32 @@ func (r *GuitarRepository) GetBrand(guitarID uuid.UUID) (*models.Brand, error) {
 		return nil, err
 	}
 	return guitar.Brand, nil
+}
+
+func (r *GuitarRepository) UpdateImage(guitarID uuid.UUID, imageURL, imageSource string, scrapedAt *time.Time) error {
+	updates := map[string]interface{}{
+		"image_url":    imageURL,
+		"image_source": imageSource,
+	}
+	if scrapedAt != nil {
+		updates["image_scraped_at"] = scrapedAt
+	}
+	return r.db.Model(&models.Guitar{}).Where("id = ?", guitarID).Updates(updates).Error
+}
+
+func (r *GuitarRepository) FindIDsWithoutImages() ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := r.db.Model(&models.Guitar{}).
+		Where("image_url IS NULL OR image_url = '' OR image_url LIKE '%placeholder%'").
+		Pluck("id", &ids).Error
+	return ids, err
+}
+
+func (r *GuitarRepository) FindAllForImageScrape() ([]models.Guitar, error) {
+	var guitars []models.Guitar
+	err := r.db.
+		Where("image_url IS NULL OR image_url = '' OR image_url LIKE '%placeholder%'").
+		Preload("Brand").
+		Find(&guitars).Error
+	return guitars, err
 }

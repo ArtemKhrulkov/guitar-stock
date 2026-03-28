@@ -55,6 +55,8 @@ type Guitar struct {
 	Specifications  *Specifications `gorm:"type:jsonb" json:"specifications,omitempty"`
 	History         *string         `gorm:"type:text" json:"history,omitempty"`
 	ImageURL        *string         `gorm:"size:500" json:"image_url,omitempty"`
+	ImageSource     *string         `gorm:"size:50" json:"image_source,omitempty"`
+	ImageScrapedAt  *time.Time      `json:"image_scraped_at,omitempty"`
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 	Players         []Player        `gorm:"many2many:guitar_players;" json:"players,omitempty"`
