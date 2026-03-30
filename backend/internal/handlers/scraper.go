@@ -43,9 +43,9 @@ func (h *ScraperHandler) ScrapeGuitar(c *gin.Context) {
 
 func (h *ScraperHandler) ScrapeAll(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 24*time.Hour)
-	defer cancel()
 
 	go func() {
+		defer cancel()
 		h.service.ScrapeAll(ctx)
 	}()
 
