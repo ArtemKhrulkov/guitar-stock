@@ -1,10 +1,15 @@
-import { IconifyIcon } from "#components";
 import { h } from "vue";
-import type { IconProps } from "vuetify";
+import { Icon } from "@iconify/vue";
 
-export const IconifyComponent = (props: IconProps) => {
-  return h(IconifyIcon, {
-    icon: props.icon || "mdi:help",
-    width: (props as unknown as { icon?: string; size: string }).size || "24px",
+export const IconifyComponent = (props: { icon?: string; size?: string }) => {
+  let icon = props.icon || "mdi:help";
+  if (!icon.includes(":")) {
+    icon = `mdi:${icon.replace(/^mdi-/, "")}`;
+  }
+  
+  return h(Icon, {
+    icon,
+    width: props.size || "24px",
+    height: props.size || "24px",
   });
 };
