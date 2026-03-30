@@ -5,19 +5,24 @@
         :class="{ 'selected-for-compare': isSelected }"
         hover
     >
-        <v-btn
-            icon
-            size="small"
-            variant="tonal"
-            class="compare-btn"
-            :color="isSelected ? 'primary' : 'default'"
-            @click.prevent="toggleCompare"
-        >
-            <IconifyIcon
-                :icon="isSelected ? 'mdi-check' : 'mdi-plus'"
-                size="18"
-            />
-        </v-btn>
+        <v-tooltip location="top" text="Add to compare">
+            <template v-slot:activator="{ props }">
+                <v-btn
+                    v-bind="props"
+                    icon
+                    size="small"
+                    variant="flat"
+                    :color="isSelected ? 'success' : 'primary'"
+                    class="compare-btn"
+                    @click.prevent="toggleCompare"
+                >
+                    <IconifyIcon
+                        :icon="isSelected ? 'mdi-check' : 'mdi-plus'"
+                        size="18"
+                    />
+                </v-btn>
+            </template>
+        </v-tooltip>
         <NuxtImg
             v-if="guitar.image_url && !guitar.image_url.startsWith('https://via.placeholder')"
             :src="guitar.image_url"
@@ -189,6 +194,7 @@ const getTypeColor = (type: string) => {
     top: 8px;
     right: 8px;
     z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .selected-for-compare {
