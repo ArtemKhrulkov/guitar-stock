@@ -180,3 +180,15 @@ func (r *GuitarRepository) FindAllForImageScrape() ([]models.Guitar, error) {
 		Find(&guitars).Error
 	return guitars, err
 }
+
+func (r *GuitarRepository) UpdatePriceRange(guitarID uuid.UUID, priceRange string) error {
+	return r.db.Model(&models.Guitar{}).Where("id = ?", guitarID).Update("price_range", priceRange).Error
+}
+
+func (r *GuitarRepository) FindAllWithPurchaseLinks() ([]models.Guitar, error) {
+	var guitars []models.Guitar
+	err := r.db.
+		Preload("PurchaseLinks").
+		Find(&guitars).Error
+	return guitars, err
+}

@@ -16,6 +16,7 @@ type ScraperConfig struct {
 	RetryDelay    time.Duration
 	ProxyURLs     []string
 	UserAgents    []string
+	ExchangeRate  float64
 }
 
 func LoadConfig() *ScraperConfig {
@@ -27,6 +28,7 @@ func LoadConfig() *ScraperConfig {
 	retries := getEnvInt("SCRAPER_RETRIES", 3)
 	retryDelay := getEnvDuration("SCRAPER_RETRY_DELAY", 10*time.Second)
 	proxyURLs := getEnvProxyURLs("PROXY_URLS")
+	exchangeRate := getEnvFloat("EXCHANGE_RATE", 90.0)
 
 	userAgents := []string{
 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -39,8 +41,8 @@ func LoadConfig() *ScraperConfig {
 		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Safari/605.1.15",
 	}
 
-	logger.Infof("[CONFIG] Loaded scraper config: max_concurrent=%d, rate_limit=%v, retries=%d, retry_delay=%v, proxies=%d",
-		maxConcurrent, rateLimit, retries, retryDelay, len(proxyURLs))
+	logger.Infof("[CONFIG] Loaded scraper config: max_concurrent=%d, rate_limit=%v, retries=%d, retry_delay=%v, proxies=%d, exchange_rate=%.2f",
+		maxConcurrent, rateLimit, retries, retryDelay, len(proxyURLs), exchangeRate)
 
 	return &ScraperConfig{
 		MaxConcurrent: maxConcurrent,
@@ -49,6 +51,7 @@ func LoadConfig() *ScraperConfig {
 		RetryDelay:    retryDelay,
 		ProxyURLs:     proxyURLs,
 		UserAgents:    userAgents,
+		ExchangeRate:  exchangeRate,
 	}
 }
 
@@ -83,4 +86,13 @@ func getEnvProxyURLs(key string) []string {
 		return result
 	}
 	return nil
+}
+
+func getEnvFloat(key string, defaultVal float64) float64 {
+	if val := os.Getenv(key); val != "" {
+		if floatVal, err := strconv.ParseFloat(val, 64); err == nil {
+			return floatVal
+		}
+	}
+	return defaultVal
 }

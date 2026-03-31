@@ -54,6 +54,7 @@ func Setup(db *gorm.DB, cfg *config.Config, scraperService *scraper.Service) *gi
 		{
 			admin.POST("/scrape/:guitar_id", scraperHandler.ScrapeGuitar)
 			admin.POST("/scrape/all", scraperHandler.ScrapeAll)
+			admin.POST("/scrape/sync-price-ranges", scraperHandler.SyncPriceRanges)
 			admin.GET("/links", adminHandler.GetLinks)
 			admin.POST("/links", adminHandler.AddLink)
 			admin.DELETE("/links", adminHandler.DeleteLink)

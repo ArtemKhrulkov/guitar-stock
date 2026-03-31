@@ -53,3 +53,15 @@ func (h *ScraperHandler) ScrapeAll(c *gin.Context) {
 		"message": "Scraping started in background",
 	})
 }
+
+func (h *ScraperHandler) SyncPriceRanges(c *gin.Context) {
+	dryRun := c.Query("dry_run") == "true"
+
+	result, err := h.service.SyncPriceRanges(dryRun)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
