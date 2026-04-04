@@ -645,16 +645,16 @@ make clean-all  # Clean production and dev
 ### Priority: Medium
 - SEO optimization (sitemap, structured data, meta tags)
 - Price history tracking
-- Wishlist functionality
 
 ### Priority: Low
-- User authentication
 - User reviews
 - Performance optimization (lazy loading, caching)
 
 ### Completed
 - ~~Comparison tool~~ ✅ Implemented
-- Dark/light theme toggle (basic dark theme active)
+- ~~Dark/light theme toggle (basic dark theme active)~~ ✅ Implemented
+- ~~User authentication (registration, login, password reset)~~ ✅ Implemented
+- ~~Wishlist functionality (guest + authenticated)~~ ✅ Implemented
 
 ---
 
