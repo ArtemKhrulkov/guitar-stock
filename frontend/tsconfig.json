@@ -2,7 +2,6 @@
   "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
     "strict": true,
-    "noImplicitAny": false,
-    "types": ["vuetify"]
+    "noImplicitAny": false
   }
 }

@@ -8,7 +8,7 @@
               <IconifyIcon icon="mdi-email-check" size="48" color="primary" />
               <h1 class="text-h5 mt-2">Verify Email</h1>
               <p class="text-body-2 text-medium-emphasis">
-                Enter the 6-digit code sent to<br />
+                Enter the 6-digit code sent to<br>
                 <strong>{{ email }}</strong>
               </p>
             </div>
