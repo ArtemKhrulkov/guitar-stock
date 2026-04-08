@@ -133,6 +133,7 @@ export default defineNuxtConfig({
 
   ssr: true,
 
+  // @ts-ignore - nitro config for deployment
   nitro: {
     preset: 'node-server',
   },
