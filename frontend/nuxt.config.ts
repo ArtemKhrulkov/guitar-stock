@@ -1,4 +1,5 @@
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 const modules = [
   '@pinia/nuxt',
@@ -6,6 +7,13 @@ const modules = [
   (_options, nuxt) => {
     nuxt.hooks.hook('vite:extendConfig', (config) => {
       config.plugins!.push(vuetify({ autoImport: true }));
+      if (process.env.NODE_ENV === 'production') {
+        config.plugins!.push(visualizer({
+          filename: '.output/stats.html',
+          open: true,
+          gzipSize: true,
+        }) as any);
+      }
     });
   },
 ];
@@ -26,10 +34,6 @@ export default defineNuxtConfig({
 
   build: {
     transpile: ['vuetify'],
-  },
-
-  experimental: {
-    bundleAnalyzer: true,
   },
 
   modules,
