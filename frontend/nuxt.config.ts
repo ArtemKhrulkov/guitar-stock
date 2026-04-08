@@ -115,5 +115,8 @@ export default defineNuxtConfig({
     '/brands/**': { isr: 3600 },
     '/compare': { ssr: true },
     '/admin/**': { ssr: false },
+    '/api/**': process.env.NODE_ENV === 'development'
+      ? { proxy: 'http://localhost:8080/api/**' }
+      : undefined,
   },
 });
