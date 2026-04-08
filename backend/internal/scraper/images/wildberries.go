@@ -59,11 +59,21 @@ func (s *WildberriesImageScraper) Search(ctx context.Context, brand, model strin
 			}
 			if imageURL != "" && s.isValidProductImage(imageURL) {
 				s.logger.Infof("[Wildberries] Found image from existing link: %s", imageURL)
+				width, height, err := FetchImageDimensions(imageURL)
+				if err != nil {
+					s.logger.Debugf("[Wildberries] Failed to fetch dimensions for %s: %v", imageURL, err)
+					s.logger.Infof("[Wildberries] Using fallback dimensions")
+					width, height = 800, 600
+				}
+				if width < MinWidth || height < MinHeight {
+					s.logger.Debugf("[Wildberries] Image too small: %dx%d, skipping", width, height)
+					continue
+				}
 				return &ImageResult{
 					URL:    imageURL,
 					Source: "wildberries",
-					Width:  800,
-					Height: 600,
+					Width:  width,
+					Height: height,
 				}, nil
 			}
 		}
@@ -91,11 +101,21 @@ func (s *WildberriesImageScraper) Search(ctx context.Context, brand, model strin
 
 		if imageURL != "" && s.isValidProductImage(imageURL) {
 			s.logger.Infof("[Wildberries] Found image: %s", imageURL)
+			width, height, err := FetchImageDimensions(imageURL)
+			if err != nil {
+				s.logger.Debugf("[Wildberries] Failed to fetch dimensions for %s: %v", imageURL, err)
+				s.logger.Infof("[Wildberries] Using fallback dimensions")
+				width, height = 800, 600
+			}
+			if width < MinWidth || height < MinHeight {
+				s.logger.Debugf("[Wildberries] Image too small: %dx%d, skipping", width, height)
+				continue
+			}
 			return &ImageResult{
 				URL:    imageURL,
 				Source: "wildberries",
-				Width:  800,
-				Height: 600,
+				Width:  width,
+				Height: height,
 			}, nil
 		}
 	}

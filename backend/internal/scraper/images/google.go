@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -59,7 +60,15 @@ func (s *GoogleScraper) Search(ctx context.Context, brand, model string) (*Image
 	}
 
 	time.Sleep(2 * time.Second)
-	page.MustWaitLoad()
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Debugf("[Google] Page closed during wait: %v", r)
+			}
+		}()
+		page.MustWaitLoad()
+	}()
 
 	time.Sleep(2 * time.Second)
 
@@ -70,18 +79,53 @@ func (s *GoogleScraper) Search(ctx context.Context, brand, model string) (*Image
 		return nil, nil
 	}
 
-	result := &ImageResult{
-		URL:    imageURL,
-		Source: "google",
-		Width:  800,
-		Height: 600,
+	imageURLToCheck := imageURL
+	thumbnailWidth := 0
+	if strings.Contains(imageURL, "google.com") || strings.Contains(imageURL, "gstatic.com") {
+		if u, err := url.Parse(imageURL); err == nil {
+			if w := u.Query().Get("w"); w != "" {
+				if parsedW, err := strconv.Atoi(w); err == nil {
+					thumbnailWidth = parsedW
+				}
+			}
+		}
+		if thumbnailWidth > 0 && thumbnailWidth < MinWidth {
+			s.logger.Debugf("[Google] Found small thumbnail (%dx%d), trying to resolve redirect...", thumbnailWidth)
+			resolvedURL, err := ResolveBingRedirect(ctx, imageURL)
+			if err != nil {
+				s.logger.Debugf("[Google] Failed to resolve redirect: %v", err)
+			} else if resolvedURL != imageURL {
+				s.logger.Debugf("[Google] Resolved to: %s", resolvedURL)
+				imageURLToCheck = resolvedURL
+			}
+		}
 	}
 
-	if !result.IsValid() || result.IsPlaceholder() {
+	width, height, err := FetchImageDimensions(imageURLToCheck)
+	if err != nil {
+		s.logger.Debugf("[Google] Failed to fetch dimensions for %s: %v", imageURLToCheck, err)
+		s.logger.Infof("[Google] Using fallback dimensions")
+		width, height = 800, 600
+	}
+
+	if width < MinWidth || height < MinHeight {
+		s.logger.Debugf("[Google] Image too small: %dx%d, skipping", width, height)
 		return nil, nil
 	}
 
-	s.logger.Infof("[Google] Found image: %s", imageURL)
+	result := &ImageResult{
+		URL:    imageURLToCheck,
+		Source: "google",
+		Width:  width,
+		Height: height,
+	}
+
+	if !result.IsValid() || result.IsPlaceholder() {
+		s.logger.Debugf("[Google] Image validation failed: %dx%d, skipping", width, height)
+		return nil, nil
+	}
+
+	s.logger.Infof("[Google] Found image: %s (%dx%d)", imageURLToCheck, width, height)
 	return result, nil
 }
 

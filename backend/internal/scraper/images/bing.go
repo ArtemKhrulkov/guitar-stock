@@ -59,7 +59,15 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 	}
 
 	time.Sleep(2 * time.Second)
-	page.MustWaitLoad()
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Debugf("[Bing] Page closed during wait: %v", r)
+			}
+		}()
+		page.MustWaitLoad()
+	}()
 
 	time.Sleep(3 * time.Second)
 
@@ -70,18 +78,43 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 		return nil, nil
 	}
 
-	result := &ImageResult{
-		URL:    imageURL,
-		Source: "bing",
-		Width:  800,
-		Height: 600,
+	imageURLToCheck := imageURL
+	if IsSmallBingThumbnail(imageURL) {
+		s.logger.Debugf("[Bing] Found small thumbnail (%dx%d), trying to resolve redirect...", GetBingThumbnailWidth(imageURL))
+		resolvedURL, err := ResolveBingRedirect(ctx, imageURL)
+		if err != nil {
+			s.logger.Debugf("[Bing] Failed to resolve redirect: %v", err)
+		} else if resolvedURL != imageURL {
+			s.logger.Debugf("[Bing] Resolved to: %s", resolvedURL)
+			imageURLToCheck = resolvedURL
+		}
 	}
 
-	if !result.IsValid() || result.IsPlaceholder() {
+	width, height, err := FetchImageDimensions(imageURLToCheck)
+	if err != nil {
+		s.logger.Debugf("[Bing] Failed to fetch dimensions for %s: %v", imageURLToCheck, err)
+		s.logger.Infof("[Bing] Using fallback dimensions")
+		width, height = 800, 600
+	}
+
+	if width < MinWidth || height < MinHeight {
+		s.logger.Debugf("[Bing] Image too small: %dx%d, skipping", width, height)
 		return nil, nil
 	}
 
-	s.logger.Infof("[Bing] Found image: %s", imageURL)
+	result := &ImageResult{
+		URL:    imageURLToCheck,
+		Source: "bing",
+		Width:  width,
+		Height: height,
+	}
+
+	if !result.IsValid() || result.IsPlaceholder() {
+		s.logger.Debugf("[Bing] Image validation failed: %dx%d, skipping", width, height)
+		return nil, nil
+	}
+
+	s.logger.Infof("[Bing] Found image: %s (%dx%d)", imageURLToCheck, width, height)
 	return result, nil
 }
 

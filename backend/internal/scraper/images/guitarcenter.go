@@ -47,13 +47,23 @@ func (s *GuitarCenterScraper) Search(ctx context.Context, brand, model string) (
 	s.logger.Infof("[GuitarCenter] Search URL: %s", searchURL)
 
 	if imageURL := s.tryHTTP(searchURL); imageURL != "" {
+		width, height, err := FetchImageDimensions(imageURL)
+		if err != nil {
+			s.logger.Debugf("[GuitarCenter] Failed to fetch dimensions for %s: %v", imageURL, err)
+			s.logger.Infof("[GuitarCenter] Using fallback dimensions")
+			width, height = 800, 600
+		}
+		if width < MinWidth || height < MinHeight {
+			s.logger.Debugf("[GuitarCenter] Image too small: %dx%d, skipping", width, height)
+			return nil, nil
+		}
 		result := &ImageResult{
 			URL:    imageURL,
 			Source: "guitarcenter",
-			Width:  800,
-			Height: 600,
+			Width:  width,
+			Height: height,
 		}
-		if result.IsValid() && !result.IsPlaceholder() {
+		if !result.IsPlaceholder() {
 			s.logger.Infof("[GuitarCenter] Found image via HTTP: %s", imageURL)
 			return result, nil
 		}
@@ -81,14 +91,26 @@ func (s *GuitarCenterScraper) Search(ctx context.Context, brand, model string) (
 		return nil, nil
 	}
 
+	width, height, err := FetchImageDimensions(imageURL)
+	if err != nil {
+		s.logger.Debugf("[GuitarCenter] Failed to fetch dimensions for %s: %v", imageURL, err)
+		s.logger.Infof("[GuitarCenter] Using fallback dimensions")
+		width, height = 800, 600
+	}
+
+	if width < MinWidth || height < MinHeight {
+		s.logger.Debugf("[GuitarCenter] Image too small: %dx%d, skipping", width, height)
+		return nil, nil
+	}
+
 	result := &ImageResult{
 		URL:    imageURL,
 		Source: "guitarcenter",
-		Width:  800,
-		Height: 600,
+		Width:  width,
+		Height: height,
 	}
 
-	if !result.IsValid() || result.IsPlaceholder() {
+	if result.IsPlaceholder() {
 		return nil, nil
 	}
 

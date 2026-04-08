@@ -53,13 +53,23 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 
 	imageURL := s.tryHTTP(searchURL)
 	if imageURL != "" {
+		width, height, err := FetchImageDimensions(imageURL)
+		if err != nil {
+			s.logger.Debugf("[Manufacturer] Failed to fetch dimensions for %s: %v", imageURL, err)
+			s.logger.Infof("[Manufacturer] Using fallback dimensions")
+			width, height = 1200, 800
+		}
+		if width < MinWidth || height < MinHeight {
+			s.logger.Debugf("[Manufacturer] Image too small: %dx%d, skipping", width, height)
+			return nil, nil
+		}
 		result := &ImageResult{
 			URL:    imageURL,
 			Source: "manufacturer:" + strings.ToLower(brand),
-			Width:  1200,
-			Height: 800,
+			Width:  width,
+			Height: height,
 		}
-		if result.IsValid() && !result.IsPlaceholder() {
+		if !result.IsPlaceholder() {
 			s.logger.Infof("[Manufacturer] Found image via HTTP: %s", imageURL)
 			return result, nil
 		}
@@ -95,14 +105,26 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 		return nil, nil
 	}
 
+	width, height, err := FetchImageDimensions(imageURL)
+	if err != nil {
+		s.logger.Debugf("[Manufacturer] Failed to fetch dimensions for %s: %v", imageURL, err)
+		s.logger.Infof("[Manufacturer] Using fallback dimensions")
+		width, height = 1200, 800
+	}
+
+	if width < MinWidth || height < MinHeight {
+		s.logger.Debugf("[Manufacturer] Image too small: %dx%d, skipping", width, height)
+		return nil, nil
+	}
+
 	result := &ImageResult{
 		URL:    imageURL,
 		Source: "manufacturer:" + strings.ToLower(brand),
-		Width:  1200,
-		Height: 800,
+		Width:  width,
+		Height: height,
 	}
 
-	if !result.IsValid() || result.IsPlaceholder() {
+	if result.IsPlaceholder() {
 		return nil, nil
 	}
 

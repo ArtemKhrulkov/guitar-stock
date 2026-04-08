@@ -72,11 +72,21 @@ func (s *SweetwaterScraper) Search(ctx context.Context, brand, model string) (*I
 		if imageURL == "" {
 			return nil, nil
 		}
+		width, height, err := FetchImageDimensions(imageURL)
+		if err != nil {
+			s.logger.Debugf("[Sweetwater] Failed to fetch dimensions for %s: %v", imageURL, err)
+			s.logger.Infof("[Sweetwater] Using fallback dimensions")
+			width, height = 1400, 1000
+		}
+		if width < MinWidth || height < MinHeight {
+			s.logger.Debugf("[Sweetwater] Image too small: %dx%d, skipping", width, height)
+			return nil, nil
+		}
 		return &ImageResult{
 			URL:    imageURL,
 			Source: "sweetwater",
-			Width:  1400,
-			Height: 1000,
+			Width:  width,
+			Height: height,
 		}, nil
 	}
 
@@ -96,11 +106,23 @@ func (s *SweetwaterScraper) Search(ctx context.Context, brand, model string) (*I
 		return nil, nil
 	}
 
+	width, height, err := FetchImageDimensions(imageURL)
+	if err != nil {
+		s.logger.Debugf("[Sweetwater] Failed to fetch dimensions for %s: %v", imageURL, err)
+		s.logger.Infof("[Sweetwater] Using fallback dimensions")
+		width, height = 1400, 1000
+	}
+
+	if width < MinWidth || height < MinHeight {
+		s.logger.Debugf("[Sweetwater] Image too small: %dx%d, skipping", width, height)
+		return nil, nil
+	}
+
 	result := &ImageResult{
 		URL:    imageURL,
 		Source: "sweetwater",
-		Width:  1400,
-		Height: 1000,
+		Width:  width,
+		Height: height,
 	}
 
 	if !result.IsValid() || result.IsPlaceholder() {
