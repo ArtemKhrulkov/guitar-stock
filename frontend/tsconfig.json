@@ -3,7 +3,6 @@
   "compilerOptions": {
     "strict": true,
     "noImplicitAny": false,
-    "skipLibCheck": true,
-    "types": ["vuetify"]
+    "skipLibCheck": true
   }
 }
