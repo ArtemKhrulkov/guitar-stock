@@ -14,6 +14,8 @@ export const useSearch = () => {
   const error = ref<string | null>(null);
   const searchQuery = ref('');
 
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
   const search = async (query: string) => {
     searchQuery.value = query;
 
@@ -22,56 +24,34 @@ export const useSearch = () => {
       return;
     }
 
-    loading.value = true;
-    error.value = null;
-
-    try {
-      const response = await $fetch<SearchResults>(
-        `${apiUrl}/search?q=${encodeURIComponent(query)}`,
-      );
-      results.value = response;
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Search failed';
-      console.error('Error searching:', e);
-    } finally {
-      loading.value = false;
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
     }
-  };
 
-  const { data: searchData, pending: searchPending, refresh: refreshSearch } = useAsyncData(
-    () => `search-${searchQuery.value}`,
-    async () => {
-      if (!searchQuery.value.trim()) {
-        return { guitars: [], players: [] } as SearchResults;
+    debounceTimer = setTimeout(async () => {
+      loading.value = true;
+      error.value = null;
+
+      try {
+        const response = await $fetch<SearchResults>(
+          `${apiUrl}/search?q=${encodeURIComponent(query)}`,
+        );
+        results.value = response;
+      } catch (e) {
+        error.value = e instanceof Error ? e.message : 'Search failed';
+        console.error('Error searching:', e);
+      } finally {
+        loading.value = false;
       }
-      const response = await $fetch<SearchResults>(
-        `${apiUrl}/search?q=${encodeURIComponent(searchQuery.value)}`,
-      );
-      return response;
-    },
-    {
-      default: () => ({ guitars: [], players: [] } as SearchResults),
-      watch: [searchQuery],
-    }
-  );
-
-  watch(searchData, (newData) => {
-    if (newData) {
-      results.value = newData;
-    }
-  });
-
-  watch(searchPending, (isPending) => {
-    loading.value = isPending;
-  });
-
-  const refresh = async () => {
-    await refreshSearch();
+    }, 300);
   };
 
   const clearResults = () => {
     searchQuery.value = '';
     results.value = { guitars: [], players: [] };
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
   };
 
   return {
@@ -81,6 +61,5 @@ export const useSearch = () => {
     searchQuery,
     search,
     clearResults,
-    refresh,
   };
 };

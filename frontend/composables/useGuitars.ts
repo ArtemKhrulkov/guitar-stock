@@ -38,6 +38,10 @@ export const useGuitars = () => {
 
   const currentFilters = ref<GuitarFilters>({});
 
+  const setFilters = (filters: GuitarFilters) => {
+    currentFilters.value = filters;
+  };
+
   const fetchGuitars = async (filters: GuitarFilters = {}) => {
     loading.value = true;
     error.value = null;
@@ -57,40 +61,6 @@ export const useGuitars = () => {
     } finally {
       loading.value = false;
     }
-  };
-
-  const { data: guitarsData, pending: guitarsPending, refresh: refreshGuitars } = useAsyncData(
-    'guitars-list',
-    async () => {
-      const queryString = buildQueryString(currentFilters.value);
-      const response = await $fetch<PaginatedResponse<Guitar>>(
-        `${apiUrl}/guitars?${queryString}`,
-      );
-      return response;
-    },
-    {
-      default: () => ({ guitars: [], total: 0, page: 1, limit: 12 } as PaginatedResponse<Guitar>),
-      watch: [currentFilters],
-    }
-  );
-
-  watch(guitarsData, (newData) => {
-    if (newData) {
-      guitars.value = newData.guitars || [];
-      total.value = newData.total;
-    }
-  });
-
-  watch(guitarsPending, (isPending) => {
-    loading.value = isPending;
-  });
-
-  const refresh = async () => {
-    await refreshGuitars();
-  };
-
-  const setFilters = (filters: GuitarFilters) => {
-    currentFilters.value = filters;
   };
 
   const fetchGuitarById = async (id: string) => {
@@ -120,6 +90,5 @@ export const useGuitars = () => {
     fetchGuitars,
     fetchGuitarById,
     setFilters,
-    refresh,
   };
 };

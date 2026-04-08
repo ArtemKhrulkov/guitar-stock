@@ -24,39 +24,6 @@ export const useBrands = () => {
     }
   };
 
-  const { data: brandsData, pending: brandsPending, refresh: refreshBrands } = useAsyncData(
-    'brands-list',
-    async () => {
-      const response = await $fetch<{ brands: Brand[] }>(`${apiUrl}/brands`);
-      return response;
-    },
-    {
-      default: () => ({ brands: [] } as { brands: Brand[] }),
-    }
-  );
-
-  watch(brandsData, (newData) => {
-    if (newData) {
-      brands.value = newData.brands || [];
-    }
-  });
-
-  watch(brandsPending, (isPending) => {
-    if (isPending) {
-      loading.value = true;
-    }
-  });
-
-  watch(() => brandsData.value, (newData) => {
-    if (newData) {
-      loading.value = false;
-    }
-  });
-
-  const refresh = async () => {
-    await refreshBrands();
-  };
-
   const fetchBrandById = async (id: string) => {
     loading.value = true;
     error.value = null;
@@ -81,6 +48,5 @@ export const useBrands = () => {
     error,
     fetchBrands,
     fetchBrandById,
-    refresh,
   };
 };
