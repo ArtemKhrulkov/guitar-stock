@@ -109,7 +109,7 @@
             <v-list>
               <v-list-item>
                 <template #prepend>
-                  <IconifyIcon icon="mdi-email" />
+                  <IconifyIcon icon="mdi-email" class="mr-2" />
                 </template>
                 <v-list-item-title>Email</v-list-item-title>
                 <v-list-item-subtitle>{{ user?.email }}</v-list-item-subtitle>
@@ -117,7 +117,7 @@
 
               <v-list-item>
                 <template #prepend>
-                  <IconifyIcon icon="mdi-account" />
+                  <IconifyIcon icon="mdi-account" class="mr-2" />
                 </template>
                 <v-list-item-title>Role</v-list-item-title>
                 <v-list-item-subtitle class="text-capitalize">{{ user?.role }}</v-list-item-subtitle>
@@ -125,7 +125,7 @@
 
               <v-list-item>
                 <template #prepend>
-                  <IconifyIcon icon="mdi-check-circle" />
+                  <IconifyIcon icon="mdi-check-circle" class="mr-2" />
                 </template>
                 <v-list-item-title>Email Verified</v-list-item-title>
                 <v-list-item-subtitle>

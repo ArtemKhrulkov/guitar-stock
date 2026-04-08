@@ -252,6 +252,7 @@ const syncPrices = async () => {
 
 const handleLogout = async () => {
   await logout();
+  navigateTo('/admin/login');
 };
 
 onMounted(() => {
