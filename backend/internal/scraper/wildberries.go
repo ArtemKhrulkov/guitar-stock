@@ -34,6 +34,7 @@ func NewWildberriesScraper() *WildberriesScraper {
 func NewWildberriesScraperWithProxies(proxies []string) *WildberriesScraper {
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+	logger.SetLevel(logrus.DebugLevel)
 
 	return &WildberriesScraper{
 		logger:  logger,
@@ -56,6 +57,57 @@ func NewWildberriesScraperWithDebug() *WildberriesScraper {
 func (s *WildberriesScraper) WithProxies(proxies []string) *WildberriesScraper {
 	s.proxies = proxies
 	return s
+}
+
+func (s *WildberriesScraper) calculateRelevance(title, brand, model string) float64 {
+	titleLower := strings.ToLower(title)
+	brandLower := strings.ToLower(brand)
+	modelLower := strings.ToLower(model)
+
+	score := 0.0
+	maxScore := 100.0
+
+	if strings.Contains(titleLower, brandLower) {
+		score += 50
+	} else if strings.Contains(brandLower, titleLower) || strings.Contains(titleLower, strings.Split(brandLower, " ")[0]) {
+		score += 25
+	}
+
+	modelWords := strings.Fields(modelLower)
+	modelMatched := 0
+	for _, word := range modelWords {
+		if len(word) > 2 && strings.Contains(titleLower, word) {
+			modelMatched++
+		}
+	}
+	if modelMatched > 0 {
+		score += float64(modelMatched) * 25 / float64(len(modelWords))
+	}
+
+	exactModel := strings.ReplaceAll(modelLower, " ", "")
+	if strings.Contains(strings.ReplaceAll(titleLower, " ", ""), exactModel) {
+		score += 25
+	}
+
+	badWords := []string{"чехол", "кейс", "сумка", "струны", "ремень", "тюнер", "педаль", "усилитель", "кабель", "медиатор", "стойка", "кронштейн", "home", "age", "decor", "свет", "лампа", "одежда", "игрушка", "книга", "dvd"}
+	for _, bad := range badWords {
+		if strings.Contains(titleLower, bad) && !strings.Contains(titleLower, brandLower) && !strings.Contains(titleLower, modelLower) {
+			score -= 30
+			break
+		}
+	}
+
+	if score < 0 {
+		score = 0
+	}
+
+	return score / maxScore
+}
+
+func (s *WildberriesScraper) isRelevantResult(title, brand, model string) bool {
+	relevance := s.calculateRelevance(title, brand, model)
+	s.logger.Debugf("[WB] Relevance for '%s': %.2f (brand: %s, model: %s)", title, relevance, brand, model)
+	return relevance >= 0.3
 }
 
 func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([]SearchResult, error) {
@@ -144,6 +196,8 @@ func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([
 		}
 	}
 
+	s.logger.Debugf("[WB] All selectors found elements: %d", len(elements))
+
 	if err != nil {
 		s.logger.Errorf("[WB] Failed to find elements: %v", err)
 		return results, nil
@@ -195,6 +249,15 @@ func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([
 		}
 
 		if titleVal == "" {
+			continue
+		}
+
+		s.logger.Debugf("[WB] Processing title: '%s'", titleVal)
+		relevanceScore := s.calculateRelevance(titleVal, brand, model)
+		s.logger.Debugf("[WB] Relevance for '%s': %.2f (threshold: 0.3)", titleVal, relevanceScore)
+
+		if !s.isRelevantResult(titleVal, brand, model) {
+			s.logger.Debugf("[WB] Skipping irrelevant result: %s", titleVal)
 			continue
 		}
 
