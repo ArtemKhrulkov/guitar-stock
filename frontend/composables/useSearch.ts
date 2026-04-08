@@ -12,63 +12,75 @@ export const useSearch = () => {
   const results = ref<SearchResults>({ guitars: [], players: [] });
   const loading = ref(false);
   const error = ref<string | null>(null);
-  const currentQuery = ref('');
-
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const searchQuery = ref('');
 
   const search = async (query: string) => {
-    currentQuery.value = query;
-
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
+    searchQuery.value = query;
 
     if (!query.trim()) {
       results.value = { guitars: [], players: [] };
       return;
     }
 
-    debounceTimer = setTimeout(async () => {
-      loading.value = true;
-      error.value = null;
+    loading.value = true;
+    error.value = null;
 
-      try {
-        const { data, error: fetchError } = await useAsyncData<SearchResults>(
-          `search-${query}`,
-          () => $fetch(`${apiUrl}/search?q=${encodeURIComponent(query)}`),
-          {
-            default: () => ({ guitars: [], players: [] }),
-            lazy: true,
-          },
-        );
+    try {
+      const response = await $fetch<SearchResults>(
+        `${apiUrl}/search?q=${encodeURIComponent(query)}`,
+      );
+      results.value = response;
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Search failed';
+      console.error('Error searching:', e);
+    } finally {
+      loading.value = false;
+    }
+  };
 
-        if (fetchError.value) {
-          error.value = fetchError.value.message || 'Search failed';
-        } else if (data.value && currentQuery.value === query) {
-          results.value = data.value;
-        }
-      } catch (e) {
-        error.value = e instanceof Error ? e.message : 'Search failed';
-        console.error('Error searching:', e);
-      } finally {
-        loading.value = false;
+  const { data: searchData, pending: searchPending, refresh: refreshSearch } = useAsyncData(
+    () => `search-${searchQuery.value}`,
+    async () => {
+      if (!searchQuery.value.trim()) {
+        return { guitars: [], players: [] } as SearchResults;
       }
-    }, 300);
+      const response = await $fetch<SearchResults>(
+        `${apiUrl}/search?q=${encodeURIComponent(searchQuery.value)}`,
+      );
+      return response;
+    },
+    {
+      default: () => ({ guitars: [], players: [] } as SearchResults),
+      watch: [searchQuery],
+    }
+  );
+
+  watch(searchData, (newData) => {
+    if (newData) {
+      results.value = newData;
+    }
+  });
+
+  watch(searchPending, (isPending) => {
+    loading.value = isPending;
+  });
+
+  const refresh = async () => {
+    await refreshSearch();
   };
 
   const clearResults = () => {
-    currentQuery.value = '';
+    searchQuery.value = '';
     results.value = { guitars: [], players: [] };
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
   };
 
   return {
     results,
     loading,
     error,
+    searchQuery,
     search,
     clearResults,
+    refresh,
   };
 };

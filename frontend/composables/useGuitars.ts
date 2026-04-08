@@ -6,6 +6,25 @@ interface GuitarDetailResponse {
   purchase_links: PurchaseLink[];
 }
 
+const buildQueryString = (filters: GuitarFilters = {}): string => {
+  const queryParams = new URLSearchParams();
+
+  if (filters.brands && filters.brands.length > 0) {
+    filters.brands.forEach((brand) => queryParams.append('brand', brand));
+  }
+  if (filters.type) queryParams.set('type', filters.type);
+  if (filters.search) queryParams.set('search', filters.search);
+  if (filters.min_price) queryParams.set('min_price', filters.min_price.toString());
+  if (filters.max_price) queryParams.set('max_price', filters.max_price.toString());
+  if (filters.in_stock !== undefined) queryParams.set('in_stock', filters.in_stock.toString());
+  if (filters.sort) queryParams.set('sort', filters.sort);
+  if (filters.dir) queryParams.set('dir', filters.dir);
+  if (filters.page) queryParams.set('page', filters.page.toString());
+  if (filters.limit) queryParams.set('limit', filters.limit.toString());
+
+  return queryParams.toString();
+};
+
 export const useGuitars = () => {
   const config = useRuntimeConfig();
   const apiUrl = config.public.apiUrl;
@@ -15,49 +34,23 @@ export const useGuitars = () => {
   const total = ref(0);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const pending = ref(false);
 
-  const buildQueryString = (filters: GuitarFilters = {}) => {
-    const queryParams = new URLSearchParams();
-
-    if (filters.brands && filters.brands.length > 0) {
-      filters.brands.forEach((brand) => queryParams.append('brand', brand));
-    }
-    if (filters.type) queryParams.set('type', filters.type);
-    if (filters.search) queryParams.set('search', filters.search);
-    if (filters.min_price) queryParams.set('min_price', filters.min_price.toString());
-    if (filters.max_price) queryParams.set('max_price', filters.max_price.toString());
-    if (filters.in_stock !== undefined) queryParams.set('in_stock', filters.in_stock.toString());
-    if (filters.sort) queryParams.set('sort', filters.sort);
-    if (filters.dir) queryParams.set('dir', filters.dir);
-    if (filters.page) queryParams.set('page', filters.page.toString());
-    if (filters.limit) queryParams.set('limit', filters.limit.toString());
-
-    return queryParams.toString();
-  };
+  const currentFilters = ref<GuitarFilters>({});
 
   const fetchGuitars = async (filters: GuitarFilters = {}) => {
     loading.value = true;
     error.value = null;
+    currentFilters.value = filters;
 
     try {
       const queryString = buildQueryString(filters);
-      const cacheKey = `guitars-${queryString || 'all'}`;
-
-      const { data, error: fetchError } = await useAsyncData<PaginatedResponse<Guitar>>(
-        cacheKey,
-        () => $fetch(`${apiUrl}/guitars?${queryString}`),
-        {
-          default: () => ({ guitars: [], total: 0, page: 1, limit: 12 }),
-          lazy: true,
-        },
+      const response = await $fetch<PaginatedResponse<Guitar>>(
+        `${apiUrl}/guitars?${queryString}`,
       );
 
-      if (fetchError.value) {
-        error.value = fetchError.value.message || 'Failed to fetch guitars';
-      } else if (data.value) {
-        guitars.value = data.value.guitars || [];
-        total.value = data.value.total;
-      }
+      guitars.value = response.guitars || [];
+      total.value = response.total;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch guitars';
       console.error('Error fetching guitars:', e);
@@ -66,31 +59,48 @@ export const useGuitars = () => {
     }
   };
 
+  const { data: guitarsData, pending: guitarsPending, refresh: refreshGuitars } = useAsyncData(
+    'guitars-list',
+    async () => {
+      const queryString = buildQueryString(currentFilters.value);
+      const response = await $fetch<PaginatedResponse<Guitar>>(
+        `${apiUrl}/guitars?${queryString}`,
+      );
+      return response;
+    },
+    {
+      default: () => ({ guitars: [], total: 0, page: 1, limit: 12 } as PaginatedResponse<Guitar>),
+      watch: [currentFilters],
+    }
+  );
+
+  watch(guitarsData, (newData) => {
+    if (newData) {
+      guitars.value = newData.guitars || [];
+      total.value = newData.total;
+    }
+  });
+
+  watch(guitarsPending, (isPending) => {
+    loading.value = isPending;
+  });
+
+  const refresh = async () => {
+    await refreshGuitars();
+  };
+
+  const setFilters = (filters: GuitarFilters) => {
+    currentFilters.value = filters;
+  };
+
   const fetchGuitarById = async (id: string) => {
     loading.value = true;
     error.value = null;
 
     try {
-      const { data, error: fetchError } = await useAsyncData<GuitarDetailResponse>(
-        `guitar-${id}`,
-        () => $fetch(`${apiUrl}/guitars/${id}`),
-        {
-          default: () => ({ guitar: null as any, players: [], purchase_links: [] }),
-          lazy: true,
-        },
-      );
-
-      if (fetchError.value) {
-        error.value = fetchError.value.message || 'Failed to fetch guitar';
-        return null;
-      }
-
-      if (data.value) {
-        currentGuitar.value = data.value.guitar;
-        return data.value;
-      }
-
-      return null;
+      const response = await $fetch<GuitarDetailResponse>(`${apiUrl}/guitars/${id}`);
+      currentGuitar.value = response.guitar;
+      return response;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch guitar';
       console.error('Error fetching guitar:', e);
@@ -106,7 +116,10 @@ export const useGuitars = () => {
     total,
     loading,
     error,
+    pending,
     fetchGuitars,
     fetchGuitarById,
+    setFilters,
+    refresh,
   };
 };

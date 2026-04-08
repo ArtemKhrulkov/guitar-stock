@@ -14,20 +14,8 @@ export const useBrands = () => {
     error.value = null;
 
     try {
-      const { data, error: fetchError } = await useAsyncData<{ brands: Brand[] }>(
-        'brands-list',
-        () => $fetch(`${apiUrl}/brands`),
-        {
-          default: () => ({ brands: [] }),
-          lazy: true,
-        },
-      );
-
-      if (fetchError.value) {
-        error.value = fetchError.value.message || 'Failed to fetch brands';
-      } else if (data.value) {
-        brands.value = data.value.brands || [];
-      }
+      const response = await $fetch<{ brands: Brand[] }>(`${apiUrl}/brands`);
+      brands.value = response.brands || [];
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch brands';
       console.error('Error fetching brands:', e);
@@ -36,31 +24,47 @@ export const useBrands = () => {
     }
   };
 
+  const { data: brandsData, pending: brandsPending, refresh: refreshBrands } = useAsyncData(
+    'brands-list',
+    async () => {
+      const response = await $fetch<{ brands: Brand[] }>(`${apiUrl}/brands`);
+      return response;
+    },
+    {
+      default: () => ({ brands: [] } as { brands: Brand[] }),
+    }
+  );
+
+  watch(brandsData, (newData) => {
+    if (newData) {
+      brands.value = newData.brands || [];
+    }
+  });
+
+  watch(brandsPending, (isPending) => {
+    if (isPending) {
+      loading.value = true;
+    }
+  });
+
+  watch(() => brandsData.value, (newData) => {
+    if (newData) {
+      loading.value = false;
+    }
+  });
+
+  const refresh = async () => {
+    await refreshBrands();
+  };
+
   const fetchBrandById = async (id: string) => {
     loading.value = true;
     error.value = null;
 
     try {
-      const { data, error: fetchError } = await useAsyncData<{ brand: Brand; guitars: Guitar[] }>(
-        `brand-${id}`,
-        () => $fetch(`${apiUrl}/brands/${id}`),
-        {
-          default: () => ({ brand: null as any, guitars: [] }),
-          lazy: true,
-        },
-      );
-
-      if (fetchError.value) {
-        error.value = fetchError.value.message || 'Failed to fetch brand';
-        return null;
-      }
-
-      if (data.value) {
-        currentBrand.value = data.value.brand;
-        return data.value;
-      }
-
-      return null;
+      const response = await $fetch<{ brand: Brand; guitars: Guitar[] }>(`${apiUrl}/brands/${id}`);
+      currentBrand.value = response.brand;
+      return response;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch brand';
       console.error('Error fetching brand:', e);
@@ -77,5 +81,6 @@ export const useBrands = () => {
     error,
     fetchBrands,
     fetchBrandById,
+    refresh,
   };
 };

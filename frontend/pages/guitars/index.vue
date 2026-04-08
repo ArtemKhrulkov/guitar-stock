@@ -171,7 +171,7 @@
 const route = useRoute();
 const router = useRouter();
 
-const { guitars, total, loading, fetchGuitars } = useGuitars();
+const { guitars, total, loading, fetchGuitars, setFilters, refresh } = useGuitars();
 const { brands, loading: filtersLoading, fetchBrands } = useBrands();
 
 const selectedBrands = ref<string[]>([]);
@@ -259,7 +259,7 @@ const applyFilters = async () => {
   currentPage.value = 1;
   updateURL();
   const sortParams = getSortParams(selectedSort.value);
-  await fetchGuitars({
+  setFilters({
     brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
     type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
     search: searchQuery.value || undefined,
@@ -310,7 +310,7 @@ const changePage = async (page: number) => {
   currentPage.value = page;
   updateURL();
   const sortParams = getSortParams(selectedSort.value);
-  await fetchGuitars({
+  setFilters({
     brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
     type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
     search: searchQuery.value || undefined,
@@ -383,7 +383,7 @@ const parseQueryParams = () => {
 parseQueryParams();
 
 const sortParams = getSortParams(selectedSort.value);
-await fetchGuitars({
+setFilters({
   brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
   type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
   search: searchQuery.value || undefined,
@@ -398,10 +398,10 @@ await fetchGuitars({
 
 watch(
   () => route.query,
-  async () => {
+  () => {
     parseQueryParams();
     const sortParams = getSortParams(selectedSort.value);
-    await fetchGuitars({
+    setFilters({
       brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
       type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
       search: searchQuery.value || undefined,
