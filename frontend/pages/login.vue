@@ -15,7 +15,7 @@
             <v-form ref="formRef" @submit.prevent="handleLogin">
               <v-text-field
                 v-model="form.email"
-                label="Email"
+                :label="!isAdminMode ? 'Email' : undefined"
                 type="email"
                 variant="outlined"
                 prepend-inner-icon="mdi-email"
