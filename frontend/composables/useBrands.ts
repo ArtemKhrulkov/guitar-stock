@@ -14,8 +14,20 @@ export const useBrands = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<{ brands: Brand[] }>(`${apiUrl}/brands`);
-      brands.value = response.brands || [];
+      const { data, error: fetchError } = await useAsyncData<{ brands: Brand[] }>(
+        'brands-list',
+        () => $fetch(`${apiUrl}/brands`),
+        {
+          default: () => ({ brands: [] }),
+          lazy: true,
+        },
+      );
+
+      if (fetchError.value) {
+        error.value = fetchError.value.message || 'Failed to fetch brands';
+      } else if (data.value) {
+        brands.value = data.value.brands || [];
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch brands';
       console.error('Error fetching brands:', e);
@@ -29,9 +41,26 @@ export const useBrands = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<{ brand: Brand; guitars: Guitar[] }>(`${apiUrl}/brands/${id}`);
-      currentBrand.value = response.brand;
-      return response;
+      const { data, error: fetchError } = await useAsyncData<{ brand: Brand; guitars: Guitar[] }>(
+        `brand-${id}`,
+        () => $fetch(`${apiUrl}/brands/${id}`),
+        {
+          default: () => ({ brand: null as any, guitars: [] }),
+          lazy: true,
+        },
+      );
+
+      if (fetchError.value) {
+        error.value = fetchError.value.message || 'Failed to fetch brand';
+        return null;
+      }
+
+      if (data.value) {
+        currentBrand.value = data.value.brand;
+        return data.value;
+      }
+
+      return null;
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch brand';
       console.error('Error fetching brand:', e);

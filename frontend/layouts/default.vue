@@ -31,6 +31,7 @@
             to="/guitars"
             class="nav-link"
             :class="{ active: route.path.startsWith('/guitars') }"
+            prefetch
           >
             <IconifyIcon icon="mdi-guitar-electric" size="18" class="mr-1" />
             Guitars

@@ -9,6 +9,7 @@
             :alt="`${brand.name} logo`"
             width="150"
             height="150"
+            sizes="sm:100px md:150px lg:200px"
             loading="lazy"
             format="webp"
             quality="80"

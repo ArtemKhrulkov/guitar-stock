@@ -12,6 +12,7 @@
         :alt="`${guitar.brand?.name} ${guitar.model}`"
         width="400"
         height="300"
+        sizes="sm:100vw md:50vw lg:33vw"
         loading="lazy"
         format="webp"
         quality="80"

@@ -35,6 +35,7 @@
                     :alt="`${guitar.brand?.name} ${guitar.model}`"
                     width="800"
                     height="600"
+                    sizes="sm:100vw md:50vw lg:600px"
                     loading="eager"
                     format="webp"
                     quality="85"
@@ -175,6 +176,13 @@
 <script setup lang="ts">
 const route = useRoute();
 const { currentGuitar: guitar, loading, error, fetchGuitarById } = useGuitars();
+
+const PurchaseLinks = defineAsyncComponent({
+  loader: () => import('~/components/PurchaseLinks.vue'),
+  loadingComponent: { template: '<div class="pa-4"><v-skeleton-loader type="card"></v-skeleton-loader></div>' },
+  delay: 200,
+  timeout: 5000,
+});
 
 const activeTab = ref('specs');
 

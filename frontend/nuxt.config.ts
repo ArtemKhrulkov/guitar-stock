@@ -28,12 +28,28 @@ export default defineNuxtConfig({
     transpile: ['vuetify'],
   },
 
+  experimental: {
+    bundleAnalyzer: true,
+  },
+
   modules,
 
   vite: {
     vue: {
       template: {
         transformAssetUrls,
+      },
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules/vue')) return 'vendor-vue';
+            if (id.includes('node_modules/vuetify')) return 'vendor-vuetify';
+            if (id.includes('node_modules/@iconify')) return 'vendor-icons';
+            if (id.includes('node_modules/pinia')) return 'vendor-state';
+          },
+        },
       },
     },
   },
@@ -96,6 +112,16 @@ export default defineNuxtConfig({
       'whatgear-pictures.s3.us-west-2.amazonaws.com',
       'www.static-src.com',
       'www.musicworks.co.nz',
+      '*.wildberries.ru',
+      '*.ozon.ru',
+      '*.sweetwater.com',
+      '*.guitarcenter.com',
+      '*.amazon.com',
+      '*.thomann.de',
+      '*.musicstore.de',
+      '*. musiciansfriend.com',
+      'cdn.shopify.com',
+      'images.reverb.com',
     ],
     format: ['webp', 'avif'],
     quality: 80,
