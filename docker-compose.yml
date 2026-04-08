@@ -10,7 +10,7 @@ services:
     environment:
       - PORT=8080
       - DATABASE_URL=postgres://postgres:postgres@db:5432/guitar_stock
-      - GIN_MODE=release
+      - GIN_MODE=${GIN_MODE:-debug}
       - PROXY_URLS=${PROXY_URLS}
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:-changeme}

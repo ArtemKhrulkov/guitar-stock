@@ -10,7 +10,7 @@
               <p class="text-body-2 text-medium-emphasis">Join Guitar Stock to save your favorite guitars</p>
             </div>
 
-            <v-form ref="form" @submit.prevent="handleRegister">
+            <v-form ref="formRef" @submit.prevent="handleRegister">
               <v-text-field
                 v-model="form.email"
                 label="Email"
@@ -93,6 +93,8 @@ const form = ref({
   password: '',
   confirmPassword: '',
 });
+
+const formRef = ref(null);
 
 const loading = ref(false);
 const error = ref('');
