@@ -327,13 +327,22 @@ func (h *AuthHandler) Login(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
+	switch h.cfg.CookieSameSite {
+	case "strict":
+		c.SetSameSite(http.SameSiteStrictMode)
+	case "none":
+		c.SetSameSite(http.SameSiteNoneMode)
+	default:
+		c.SetSameSite(http.SameSiteLaxMode)
+	}
+
 	c.SetCookie(
 		"auth_token",
 		"",
 		-1,
 		"/",
 		"",
-		false,
+		h.cfg.CookieSecure,
 		true,
 	)
 
@@ -502,13 +511,23 @@ func (h *AuthHandler) RemoveFromWishlist(c *gin.Context) {
 func (h *AuthHandler) setAuthCookie(c *gin.Context, userID string) {
 	cookieMaxAge := 7 * 24 * 60 * 60 // 7 days in seconds
 
+	// Set SameSite based on config
+	switch h.cfg.CookieSameSite {
+	case "strict":
+		c.SetSameSite(http.SameSiteStrictMode)
+	case "none":
+		c.SetSameSite(http.SameSiteNoneMode)
+	default: // lax
+		c.SetSameSite(http.SameSiteLaxMode)
+	}
+
 	c.SetCookie(
 		"auth_token",
 		userID,
 		cookieMaxAge,
 		"/",
 		"",
-		false,
+		h.cfg.CookieSecure,
 		true,
 	)
 }

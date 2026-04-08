@@ -11,6 +11,8 @@ type Config struct {
 	AllowedOrigins string
 	AdminUser      string
 	AdminPass      string
+	CookieSecure   bool
+	CookieSameSite string
 }
 
 func Load() (*Config, error) {
@@ -34,6 +36,8 @@ func Load() (*Config, error) {
 		AllowedOrigins: viper.GetString("ALLOWED_ORIGINS"),
 		AdminUser:      viper.GetString("ADMIN_USER"),
 		AdminPass:      viper.GetString("ADMIN_PASS"),
+		CookieSecure:   viper.GetBool("COOKIE_SECURE"),
+		CookieSameSite: viper.GetString("COOKIE_SAMESITE"),
 	}
 
 	if cfg.Port == "" {
@@ -50,6 +54,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.AdminPass == "" {
 		cfg.AdminPass = "changeme"
+	}
+	if cfg.CookieSameSite == "" {
+		cfg.CookieSameSite = "lax"
 	}
 
 	return cfg, nil

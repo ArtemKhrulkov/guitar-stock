@@ -12,7 +12,7 @@
               </p>
             </div>
 
-            <v-form ref="form" @submit.prevent="handleLogin">
+            <v-form ref="formRef" @submit.prevent="handleLogin">
               <v-text-field
                 v-model="form.email"
                 label="Email"
@@ -23,7 +23,7 @@
                 :error-messages="errors.email"
                 class="mb-4"
                 :disabled="isAdminMode"
-                :value="isAdminMode ? 'admin' : undefined"
+                :value="isAdminMode ? 'admin' : form.email"
                 :hint="isAdminMode ? 'Default admin account' : undefined"
               />
 
@@ -101,6 +101,8 @@ const form = ref({
   password: '',
 });
 
+const formRef = ref(null);
+
 const rules = {
   required: (v: string) => !!v || 'Required',
   email: (v: string) => !isAdminMode.value ? (/.+@.+\..+/.test(v) || 'Invalid email') : true,
@@ -128,7 +130,7 @@ const handleLogin = async () => {
   loading.value = true;
   try {
     const user = await login(form.value.email, form.value.password);
-    
+
     // Check if user is admin and redirect accordingly
     if (user.role === 'admin') {
       navigateTo('/admin');
