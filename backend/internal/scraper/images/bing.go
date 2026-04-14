@@ -42,7 +42,6 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 	s.logger.Infof("[Bing] Searching for: %s %s", brand, model)
 
 	searchURL := s.buildSearchURL(brand, model)
-	s.logger.Debugf("[Bing] Search URL: %s", searchURL)
 
 	instance, err := s.launcher.Launch(ctx)
 	if err != nil {
@@ -71,7 +70,15 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 
 	time.Sleep(3 * time.Second)
 
-	imageURL := s.extractImage(page)
+	var imageURL string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Debugf("[Bing] Panic during extraction: %v", r)
+			}
+		}()
+		imageURL = s.extractImage(page)
+	}()
 
 	if imageURL == "" {
 		s.logger.Infof("[Bing] No image found for %s %s", brand, model)
@@ -79,8 +86,9 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 	}
 
 	imageURLToCheck := imageURL
-	if IsSmallBingThumbnail(imageURL) {
-		s.logger.Debugf("[Bing] Found small thumbnail (%dx%d), trying to resolve redirect...", GetBingThumbnailWidth(imageURL))
+	bangThumbnailWidth := GetBingThumbnailWidth(imageURL)
+	if bangThumbnailWidth > 0 && bangThumbnailWidth < MinWidth {
+		s.logger.Debugf("[Bing] Found small thumbnail (w=%d), trying to resolve redirect...", bangThumbnailWidth)
 		resolvedURL, err := ResolveBingRedirect(ctx, imageURL)
 		if err != nil {
 			s.logger.Debugf("[Bing] Failed to resolve redirect: %v", err)
@@ -93,6 +101,10 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 	width, height, err := FetchImageDimensions(imageURLToCheck)
 	if err != nil {
 		s.logger.Debugf("[Bing] Failed to fetch dimensions for %s: %v", imageURLToCheck, err)
+		if IsSmallBingThumbnail(imageURLToCheck) {
+			s.logger.Debugf("[Bing] URL indicates small image (w=%d), skipping", GetBingThumbnailWidth(imageURLToCheck))
+			return nil, nil
+		}
 		s.logger.Infof("[Bing] Using fallback dimensions")
 		width, height = 800, 600
 	}

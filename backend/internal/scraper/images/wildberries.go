@@ -177,7 +177,15 @@ func (s *WildberriesImageScraper) findProductURL(ctx context.Context, searchURL 
 
 	time.Sleep(3 * time.Second)
 
-	productURL := s.extractProductURL(page)
+	var productURL string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				s.logger.Debugf("[Wildberries] Panic during URL extraction: %v", r)
+			}
+		}()
+		productURL = s.extractProductURL(page)
+	}()
 	return productURL, nil
 }
 

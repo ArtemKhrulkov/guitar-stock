@@ -20,9 +20,6 @@ func NewScraper(db *gorm.DB) *Scraper {
 
 	scrapers := []ImageScraper{
 		NewBingScraper(),
-		NewGoogleScraper(),
-		NewSweetwaterScraper(),
-		NewManufacturerScraper(),
 		NewGuitarCenterScraper(),
 		NewWildberriesImageScraper(db),
 	}
@@ -41,7 +38,13 @@ func (s *Scraper) Scrape(ctx context.Context, brand, model string) (*ImageResult
 		default:
 		}
 
-		searchCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		// Give Manufacturer more time since it searches 12 sites
+		timeout := 60 * time.Second
+		if scraper.Name() == "manufacturer" {
+			timeout = 120 * time.Second
+		}
+
+		searchCtx, cancel := context.WithTimeout(ctx, timeout)
 
 		s.logger.Debugf("[Scraper] Trying %s for %s %s", scraper.Name(), brand, model)
 		result, err := scraper.Search(searchCtx, brand, model)

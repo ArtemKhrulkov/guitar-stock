@@ -80,7 +80,7 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 		return nil, nil
 	}
 
-	launchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	launchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	instance, err := s.launcher.Launch(launchCtx)
@@ -92,12 +92,19 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 
 	s.logger.Infof("[Manufacturer] Trying browser fallback...")
 
-	if err := instance.Page.Timeout(30 * time.Second).Navigate(searchURL); err != nil {
+	s.logger.Infof("[Manufacturer] About to navigate to: %s", searchURL)
+
+	if err := instance.Page.Navigate(searchURL); err != nil {
 		s.logger.Debugf("[Manufacturer] Browser navigation failed: %v", err)
 		return nil, nil
 	}
 
-	time.Sleep(3 * time.Second)
+	s.logger.Debugf("[Manufacturer] Navigation complete, waiting for load...")
+
+	instance.Page.MustWaitLoad()
+	time.Sleep(500 * time.Millisecond)
+
+	s.logger.Debugf("[Manufacturer] Extracting image from page...")
 
 	imageURL = s.extractImage(instance.Page)
 	if imageURL == "" {
@@ -105,11 +112,15 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 		return nil, nil
 	}
 
+	s.logger.Debugf("[Manufacturer] Found image URL: %s", imageURL)
+
 	width, height, err := FetchImageDimensions(imageURL)
 	if err != nil {
 		s.logger.Debugf("[Manufacturer] Failed to fetch dimensions for %s: %v", imageURL, err)
 		s.logger.Infof("[Manufacturer] Using fallback dimensions")
 		width, height = 1200, 800
+	} else {
+		s.logger.Debugf("[Manufacturer] Image dimensions: %dx%d", width, height)
 	}
 
 	if width < MinWidth || height < MinHeight {

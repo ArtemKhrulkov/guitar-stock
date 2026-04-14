@@ -84,10 +84,20 @@ func (s *GuitarCenterScraper) Search(ctx context.Context, brand, model string) (
 
 	time.Sleep(2 * time.Second)
 
-	imageURL := s.extractImage(instance.Page)
+	imageURL := s.safeExtractImage(instance.Page)
 
 	if imageURL == "" {
 		s.logger.Infof("[GuitarCenter] No image found for %s %s", brand, model)
+		return nil, nil
+	}
+
+	if s.isHeroImage(imageURL) {
+		s.logger.Debugf("[GuitarCenter] Skipping hero image: %s", imageURL)
+		return nil, nil
+	}
+
+	if !s.isValidImageURL(imageURL) {
+		s.logger.Debugf("[GuitarCenter] Invalid/placeholder image: %s", imageURL)
 		return nil, nil
 	}
 
@@ -157,14 +167,33 @@ func (s *GuitarCenterScraper) tryHTTP(searchURL string) string {
 func (s *GuitarCenterScraper) extractImage(page *rod.Page) string {
 	jsCode := `
 		function() {
-			var img = document.querySelector('img.product-image') || 
-			          document.querySelector('[data-testid="product-image"] img') ||
-			          document.querySelector('.product-detail-image img') ||
-			          document.querySelector('.product-media-gallery img');
-			if (img) {
-				return img.src || img.getAttribute('data-src') || '';
+			var results = [];
+			
+			var products = document.querySelectorAll('.product-card, .product-result, [data-product-id], .product-item');
+			for (var i = 0; i < Math.min(products.length, 3); i++) {
+				var product = products[i];
+				var img = product.querySelector('img');
+				if (img) {
+					var src = img.src || img.getAttribute('data-src');
+					if (src && !src.includes('hero') && !src.includes('Hero') && !src.includes('banner') && !src.includes('Banner')) {
+						results.push(src);
+					}
+				}
 			}
-			return '';
+			
+			if (results.length === 0) {
+				var img = document.querySelector('.product-detail-image img') ||
+				          document.querySelector('.product-media-gallery img') ||
+				          document.querySelector('[data-testid="product-image"] img');
+				if (img) {
+					var src = img.src || img.getAttribute('data-src');
+					if (src && !src.includes('hero') && !src.includes('Hero')) {
+						results.push(src);
+					}
+				}
+			}
+			
+			return results.length > 0 ? results[0] : '';
 		}
 	`
 
@@ -181,7 +210,7 @@ func (s *GuitarCenterScraper) extractImage(page *rod.Page) string {
 func (s *GuitarCenterScraper) fallbackExtract(page *rod.Page) string {
 	els, err := page.Elements("img[src*='guitarcenter']")
 	if err == nil && len(els) > 0 {
-		for _, el := range els[:3] {
+		for _, el := range els[:5] {
 			src, _ := el.Attribute("src")
 			if src != nil && *src != "" && s.isValidImageURL(*src) {
 				return *src
@@ -195,10 +224,28 @@ func (s *GuitarCenterScraper) fallbackExtract(page *rod.Page) string {
 
 func (s *GuitarCenterScraper) extractFromHTML(html string) string {
 	patterns := []string{
-		`"image":"(https://[^"]+guitarcenter[^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)"`,
 		`"primaryImage":"(https://[^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)"`,
+		`"image":"(https://[^"]+MMGS7[^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)"`,
+		`"image":"(https://[^"]+guitarcenter[^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)"`,
 		`data-image="([^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)"`,
-		`https://[^"]*guitarcenter[^"]*\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?`,
+	}
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindAllStringSubmatch(html, -1)
+		for _, match := range matches {
+			if len(match) >= 2 {
+				url := match[1]
+				if s.isValidImageURL(url) && !s.isHeroImage(url) {
+					return url
+				}
+			} else if len(match) == 1 {
+				url := match[0]
+				if s.isValidImageURL(url) && !s.isHeroImage(url) {
+					return url
+				}
+			}
+		}
 	}
 
 	for _, pattern := range patterns {
@@ -222,6 +269,20 @@ func (s *GuitarCenterScraper) extractFromHTML(html string) string {
 	return ""
 }
 
+func (s *GuitarCenterScraper) isHeroImage(url string) bool {
+	badPatterns := []string{
+		"subhero", "hero", "Subhero", "Hero",
+		"banner", "Banner", "carousel", "Carousel",
+		"promo", "Promo", "landing", "Landing",
+	}
+	for _, bad := range badPatterns {
+		if strings.Contains(strings.ToLower(url), bad) {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *GuitarCenterScraper) isValidImageURL(url string) bool {
 	if url == "" {
 		return false
@@ -229,11 +290,25 @@ func (s *GuitarCenterScraper) isValidImageURL(url string) bool {
 	if !strings.HasPrefix(url, "http") {
 		return false
 	}
-	badPatterns := []string{"placeholder", "logo", "icon", "avatar", "banner"}
+	urlLower := strings.ToLower(url)
+	badPatterns := []string{
+		"placeholder", "logo", "icon", "avatar", "banner",
+		"transparent", "spacer", "pixel", "1x1", "data:image",
+		"m26895000001000", "no-image", "no_image",
+	}
 	for _, bad := range badPatterns {
-		if strings.Contains(strings.ToLower(url), bad) {
+		if strings.Contains(urlLower, bad) {
 			return false
 		}
 	}
 	return true
+}
+
+func (s *GuitarCenterScraper) safeExtractImage(page *rod.Page) string {
+	defer func() {
+		if r := recover(); r != nil {
+			s.logger.Debugf("[GuitarCenter] Panic during image extraction: %v", r)
+		}
+	}()
+	return s.extractImage(page)
 }

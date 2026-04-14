@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	MinWidth  = 300
-	MinHeight = 200
+	MinWidth  = 200
+	MinHeight = 150
 )
 
 type ImageResult struct {
