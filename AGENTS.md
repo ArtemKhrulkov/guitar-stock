@@ -607,6 +607,49 @@ make clean-all  # Clean production and dev
 
 ---
 
+## Testing Rules
+
+### REQUIRED: Always Run Tests After Changes
+
+**After any code improvements, bug fixes, or feature implementations, you MUST run the appropriate tests:**
+
+```bash
+# Frontend tests (after any frontend changes)
+cd frontend && npm run test:run
+
+# Backend tests (after any backend changes)
+cd backend && go test ./...
+
+# Both
+cd frontend && npm run test:run && cd ../backend && go test ./...
+```
+
+### Test Requirements
+1. **Frontend**: 14 tests in `frontend/tests/composables.test.ts` - must pass
+2. **Backend**: Integration tests in `backend/internal/handlers/tests/integration_test.go` - requires test DB
+
+### Test Database Setup
+For backend tests, ensure test database exists:
+```bash
+docker exec guitar-stories-db-1 psql -U postgres -c "CREATE DATABASE guitar_stock_test;"
+```
+
+### When to Run Tests
+- After fixing bugs
+- After implementing new features
+- After refactoring code
+- Before committing changes
+- After updating dependencies
+
+### Test Files Location
+```
+backend/internal/handlers/tests/integration_test.go    # API integration tests
+frontend/tests/composables.test.ts                    # Vue composable tests
+frontend/vitest.config.ts                            # Vitest configuration
+```
+
+---
+
 ## Testing Strategy
 
 ### Backend
