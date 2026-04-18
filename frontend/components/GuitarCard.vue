@@ -32,27 +32,37 @@
         </div>
 
         <div class="flex items-center">
-          <v-btn
-            icon
-            size="small"
-            :color="isWishlisted ? 'error' : 'white'"
-            class="wishlist-btn mr-2"
-            :aria-label="isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'"
-            @click.prevent="toggleWishlist"
-          >
-            <IconifyIcon :icon="isWishlisted ? 'mdi-heart' : 'mdi-heart-outline'" size="18" />
-          </v-btn>
+          <v-tooltip :key="`wishlist-${guitar.id}`" :text="wishlistTooltipText" location="top">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon
+                size="small"
+                :color="isWishlisted ? 'error' : 'white'"
+                class="wishlist-btn mr-2"
+                :aria-label="wishlistTooltipText"
+                @click.prevent="toggleWishlist"
+              >
+                <IconifyIcon :icon="isWishlisted ? 'mdi-heart' : 'mdi-heart-outline'" size="18" />
+              </v-btn>
+            </template>
+          </v-tooltip>
 
-          <v-btn
-            icon
-            size="small"
-            :color="isSelected ? 'success' : 'white'"
-            class="compare-btn"
-            :aria-label="isSelected ? 'Remove from compare' : 'Add to compare'"
-            @click.prevent="toggleCompare"
-          >
-            <IconifyIcon :icon="isSelected ? 'mdi-check' : 'mdi-plus'" size="18" />
-          </v-btn>
+          <v-tooltip :key="`compare-${guitar.id}`" :text="compareTooltipText" location="top">
+            <template #activator="{ props }">
+              <v-btn
+                v-bind="props"
+                icon
+                size="small"
+                :color="isSelected ? 'success' : 'white'"
+                class="compare-btn"
+                :aria-label="compareTooltipText"
+                @click.prevent="toggleCompare"
+              >
+                <IconifyIcon :icon="isSelected ? 'mdi-check' : 'mdi-plus'" size="18" />
+              </v-btn>
+            </template>
+          </v-tooltip>
         </div>
       </div>
     </div>
@@ -111,6 +121,8 @@ const wishlistStore = useWishlist();
 
 const isSelected = computed(() => comparisonStore.isSelected(props.guitar.id));
 const isWishlisted = computed(() => wishlistStore.guitarIds.value.includes(props.guitar.id));
+const wishlistTooltipText = computed(() => isWishlisted.value ? 'Remove from wishlist' : 'Add to wishlist');
+const compareTooltipText = computed(() => isSelected.value ? 'Remove from compare' : 'Add to compare');
 const showWarning = ref(false);
 const wishlistLoading = ref(false);
 
@@ -165,6 +177,12 @@ const extractPriceRange = (priceRange: string) => {
 </script>
 
 <style scoped>
+
+.v-tooltip> ::v-deep(.v-overlay__content) {
+  background: rgb(var(--v-theme-primary));
+  color: white
+}
+
 .guitar-card {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;

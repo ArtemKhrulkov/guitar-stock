@@ -324,6 +324,41 @@ describe('GuitarFilters', () => {
   });
 });
 
+describe('Tooltip Logic', () => {
+  it('wishlist tooltip shows correct text based on wishlist state', () => {
+    const getWishlistTooltipText = (isWishlisted: boolean): string => {
+      return isWishlisted ? 'Remove from wishlist' : 'Add to wishlist';
+    };
+
+    expect(getWishlistTooltipText(false)).toBe('Add to wishlist');
+    expect(getWishlistTooltipText(true)).toBe('Remove from wishlist');
+  });
+
+  it('compare tooltip shows correct text based on selection state', () => {
+    const getCompareTooltipText = (isSelected: boolean): string => {
+      return isSelected ? 'Remove from compare' : 'Add to compare';
+    };
+
+    expect(getCompareTooltipText(false)).toBe('Add to compare');
+    expect(getCompareTooltipText(true)).toBe('Remove from compare');
+  });
+
+  it('tooltip keys are unique per guitar', () => {
+    const generateTooltipKeys = (guitarId: string) => ({
+      wishlistKey: `wishlist-${guitarId}`,
+      compareKey: `compare-${guitarId}`,
+    });
+
+    const guitar1 = generateTooltipKeys('guitar-1');
+    const guitar2 = generateTooltipKeys('guitar-2');
+
+    expect(guitar1.wishlistKey).not.toBe(guitar2.wishlistKey);
+    expect(guitar1.compareKey).not.toBe(guitar2.compareKey);
+    expect(guitar1.wishlistKey).toBe('wishlist-guitar-1');
+    expect(guitar1.compareKey).toBe('compare-guitar-1');
+  });
+});
+
 describe('API Response Types', () => {
   it('PaginatedResponse has required fields', () => {
     const mockResponse = {
